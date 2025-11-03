@@ -1,0 +1,67 @@
+
+The Way Application - Proprietary License
+Copyright (c) [Year] [Your Full Name or Company Name]. All Rights Reserved.
+1. OWNERSHIP:
+The source code, design, and intellectual property of "The Way" application (the "Software") are the sole and exclusive property of [Your Full Name or Company Name].
+2. PRIVATE USE ONLY:
+This Software is not distributed under any open-source license. No permission is granted to use, copy, modify, distribute, or sublicense this Software in source or compiled form.
+3. RESTRICTIONS:
+You may not:
+Copy or reproduce the Software.
+Distribute, sublicense, rent, lease, or lend the Software.
+Modify, adapt, translate, or create derivative works based on the Software.
+Reverse engineer, decompile, or disassemble the Software.
+4. COMMERCIAL USE:
+Any use, distribution, or reproduction of the Software for commercial purposes is strictly prohibited without the express written permission of [Your Full Name or Company Name].
+
+------------------------------ Tops of files -------------------------------------
+
+// Copyright (c) 2025 [Your Full Name]. All Rights Reserved.
+// Proprietary and confidential. Unauthorized copying is prohibited.
+
+By using the **Proprietary License (Option 2)** and placing **Copyright Notices (Option 3)** on your files, you clearly signal that this is private code and reserve all legal rights to yourself.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
