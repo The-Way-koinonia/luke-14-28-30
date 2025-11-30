@@ -1,35 +1,31 @@
 {
-  "name": "the-way",
+  "name": "the-way-monorepo",
   "version": "1.0.0",
-  "description": "A Bible Engine, Memorization tool, SMP",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/The-Way-koinonia/luke-14-28-30.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/The-Way-koinonia/luke-14-28-30/issues"
-  },
-  "homepage": "https://github.com/The-Way-koinonia/luke-14-28-30#readme",
+  "private": true,
+  "description": "The Way - Faith-centered social network and Bible study app",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
-  "dependencies": {
-    "dotenv": "^17.2.3",
-    "pg": "^8.16.3"
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:mobile": "npm run dev --workspace=apps/mobile",
+    "build": "npm run build --workspaces",
+    "build:web": "npm run build --workspace=apps/web",
+    "lint": "npm run lint --workspaces",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "db:up": "cd database && docker compose up -d",
+    "db:down": "cd database && docker compose down",
+    "db:logs": "cd database && docker logs theway-postgres-1",
+    "db:shell": "cd database && docker exec -it theway-postgres-1 psql -U the_way_user -d the_way",
+    "db:import": "node database/scripts/import-bible-verses.js"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "@types/pg": "^8.15.6",
-    "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
