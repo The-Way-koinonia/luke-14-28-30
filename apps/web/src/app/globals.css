@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light mode colors */
+    --bg-primary: 250 250 249;        /* #FAFAF9 */
+    --bg-secondary: 245 245 244;      /* #F5F5F4 */
+    --bg-tertiary: 255 255 255;       /* #FFFFFF */
+    --bg-elevated: 255 255 255;       /* #FFFFFF */
+
+    --text-primary: 28 25 23;         /* #1C1917 */
+    --text-secondary: 87 83 78;       /* #57534E */
+    --text-tertiary: 120 113 108;     /* #78716C */
+    --text-inverse: 255 255 255;      /* #FFFFFF */
+
+    --border-light: 231 229 228;      /* #E7E5E4 */
+    --border: 214 211 209;            /* #D6D3D1 */
+    --border-dark: 168 162 158;       /* #A8A29E */
+  }
+
+  .dark {
+    /* Dark mode colors */
+    --bg-primary: 15 14 13;           /* #0F0E0D */
+    --bg-secondary: 28 25 23;         /* #1C1917 */
+    --bg-tertiary: 41 37 36;          /* #292524 */
+    --bg-elevated: 50 47 44;          /* #322F2C */
+
+    --text-primary: 250 250 249;      /* #FAFAF9 */
+    --text-secondary: 214 211 209;    /* #D6D3D1 */
+    --text-tertiary: 168 162 158;     /* #A8A29E */
+    --text-inverse: 28 25 23;         /* #1C1917 */
+
+    --border-light: 41 37 36;         /* #292524 */
+    --border: 68 64 60;               /* #44403C */
+    --border-dark: 87 83 78;          /* #57534E */
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Bible text specific styling */
+  .bible-text {
+    @apply font-serif text-lg leading-relaxed;
+  }
+
+  /* Verse numbers */
+  .verse-number {
+    @apply text-brand-purple font-bold text-sm;
+  }
+
+  /* Glowing effects (like the radiating cross in logo) */
+  .glow-gold {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+  }
+
+  /* Smooth transitions for theme switching */
+  * {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer components {
+  /* Button styles with theme colors */
+  .btn-primary {
+    @apply bg-brand-purple text-white px-4 py-2 rounded-lg font-medium;
+    @apply hover:bg-brand-purple-dark active:scale-95;
+    @apply transition-all duration-200;
+  }
+
+  .btn-secondary {
+    @apply bg-brand-gold text-white px-4 py-2 rounded-lg font-medium;
+    @apply hover:bg-brand-gold-dark active:scale-95;
+    @apply transition-all duration-200;
+  }
+
+  .btn-outline {
+    @apply border-2 border-brand-purple text-brand-purple px-4 py-2 rounded-lg font-medium;
+    @apply hover:bg-brand-purple hover:text-white active:scale-95;
+    @apply transition-all duration-200;
+  }
+
+  /* Card with theme-aware styling */
+  .card {
+    @apply bg-bg-tertiary border border-border rounded-lg p-6;
+    @apply shadow-md hover:shadow-lg transition-shadow;
+  }
+
+  /* Special gradient text (like the golden path) */
+  .text-gradient-gold {
+    @apply bg-gradient-gold bg-clip-text text-transparent;
+  }
+
+  .text-gradient-purple {
+    @apply bg-gradient-purple bg-clip-text text-transparent;
+  }
+
+  /* Input fields with theme support */
+  .input {
+    @apply w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md;
+    @apply text-text-primary placeholder:text-text-tertiary;
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-purple;
+  }
+}
+
+/* Custom scrollbar (optional - themed) */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-bg-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-border-dark rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-brand-purple;
+}
