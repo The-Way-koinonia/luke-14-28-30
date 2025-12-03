@@ -1,59 +1,44 @@
 import { db } from '../index';
-import type { BibleVerse, BibleBook } from '@the-way/types';
+
+interface BibleBook {
+  id: number;
+  name: string;
+}
+
+interface BibleVerse {
+  id: number;
+  book_id: number;
+  chapter: number;
+  verse: number;
+  text: string;
+  book_name?: string;
+}
 
 export const bibleRepository = {
-  async getVerse(
-    bookId: number,
-    chapter: number,
-    verse: number,
-    translation: string = 'KJV'
-  ): Promise<BibleVerse | null> {
-    return db.queryOne<BibleVerse>(
-      `SELECT 
-        bv.id,
-        bv.translation,
-        bv.book_id,
-        bv.chapter,
-        bv.verse,
-        bv.text,
-        bb.name as book_name
-      FROM bible_verses bv
-      JOIN bible_books bb ON bv.book_id = bb.id
-      WHERE bv.translation = $1 
-        AND bv.book_id = $2 
-        AND bv.chapter = $3 
-        AND bv.verse = $4`,
-      [translation, bookId, chapter, verse]
-    );
-  },
-
-  async getChapter(
-    bookId: number,
-    chapter: number,
-    translation: string = 'KJV'
-  ): Promise<BibleVerse[]> {
-    return db.query<BibleVerse>(
-      `SELECT 
-        bv.id,
-        bv.translation,
-        bv.book_id,
-        bv.chapter,
-        bv.verse,
-        bv.text,
-        bb.name as book_name
-      FROM bible_verses bv
-      JOIN bible_books bb ON bv.book_id = bb.id
-      WHERE bv.translation = $1 
-        AND bv.book_id = $2 
-        AND bv.chapter = $3
-      ORDER BY bv.verse`,
-      [translation, bookId, chapter]
-    );
-  },
-
   async getAllBooks(): Promise<BibleBook[]> {
-    return db.query<BibleBook>(
-      `SELECT * FROM bible_books ORDER BY book_number`
+    return await db.query<BibleBook>('SELECT * FROM "KJV_books" ORDER BY id');
+  },
+
+  async getVersesByChapter(bookId: number, chapter: number): Promise<BibleVerse[]> {
+    return await db.query<BibleVerse>(
+      `SELECT v.*, b.name as book_name 
+       FROM "KJV_verses" v
+       JOIN "KJV_books" b ON v.book_id = b.id
+       WHERE v.book_id = $1 AND v.chapter = $2
+       ORDER BY v.verse`,
+      [bookId, chapter]
+    );
+  },
+
+  async searchVerses(searchTerm: string, limit: number = 50): Promise<BibleVerse[]> {
+    return await db.query<BibleVerse>(
+      `SELECT v.*, b.name as book_name 
+       FROM "KJV_verses" v
+       JOIN "KJV_books" b ON v.book_id = b.id
+       WHERE v.text ILIKE $1
+       ORDER BY v.book_id, v.chapter, v.verse
+       LIMIT $2`,
+      [`%${searchTerm}%`, limit]
     );
   }
 };

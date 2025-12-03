@@ -2,49 +2,48 @@ import { NextResponse } from 'next/server';
 import { bibleRepository } from '@/lib/db/repositories/bible.repository';
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-
-  const bookId = searchParams.get('bookId');
-  const chapter = searchParams.get('chapter');
-  const verse = searchParams.get('verse');
-  const translation = searchParams.get('translation') || 'KJV';
-
   try {
-    // Get single verse
-    if (bookId && chapter && verse) {
-      const verseData = await bibleRepository.getVerse(
-        parseInt(bookId),
-        parseInt(chapter),
-        parseInt(verse),
-        translation
+    const { searchParams } = new URL(request.url);
+    const bookId = searchParams.get('bookId');
+    const chapter = searchParams.get('chapter');
+    const verseNum = searchParams.get('verse');
+
+    if (!bookId || !chapter) {
+      return NextResponse.json(
+        { error: 'Missing required parameters: bookId and chapter' },
+        { status: 400 }
       );
-
-      if (!verseData) {
-        return NextResponse.json(
-          { error: 'Verse not found' },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({ verse: verseData });
     }
 
-    // Get full chapter
-    if (bookId && chapter) {
-      const verses = await bibleRepository.getChapter(
-        parseInt(bookId),
-        parseInt(chapter),
-        translation
-      );
-
-      return NextResponse.json({ verses, count: verses.length });
-    }
-
-    // Missing required parameters
-    return NextResponse.json(
-      { error: 'Missing required parameters: bookId and chapter' },
-      { status: 400 }
+    // Get verses for the chapter
+    const verses = await bibleRepository.getVersesByChapter(
+      parseInt(bookId),
+      parseInt(chapter)
     );
+
+    console.log('DEBUG - verses returned:', Array.isArray(verses) ? `Array with ${verses.length} items` : typeof verses);
+
+    if (!verses || !Array.isArray(verses) || verses.length === 0) {
+      return NextResponse.json(
+        { error: 'No verses found for this chapter' },
+        { status: 404 }
+      );
+    }
+
+    // If specific verse requested, filter to that verse
+    if (verseNum) {
+      const singleVerse = verses.find(v => v.verse === parseInt(verseNum));
+      return NextResponse.json({
+        success: true,
+        verses: singleVerse ? [singleVerse] : []
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      verses
+    });
+
   } catch (error) {
     console.error('Bible verses API error:', error);
     return NextResponse.json(
