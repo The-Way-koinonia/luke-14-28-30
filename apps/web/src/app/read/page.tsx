@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import StrongsModal from '@/components/StrongsModal';
 
 interface BibleVerse {
   id: number;
@@ -34,6 +35,14 @@ interface Bookmark {
   bookName: string;
 }
 
+interface ModalState {
+  isOpen: boolean;
+  word: string;
+  bookName: string;
+  chapter: number;
+  verse: number;
+}
+
 export default function BibleReader() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -52,6 +61,15 @@ export default function BibleReader() {
   const [selectedVerses, setSelectedVerses] = useState<Set<number>>(new Set());
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
+
+  // Modal state
+  const [modalState, setModalState] = useState<ModalState>({
+    isOpen: false,
+    word: '',
+    bookName: '',
+    chapter: 0,
+    verse: 0
+  });
 
   // Load highlights and bookmarks from localStorage
   useEffect(() => {
@@ -250,8 +268,54 @@ export default function BibleReader() {
     router.push('/');
   };
 
+  // Handle word click
+  const handleWordClick = (word: string, verse: BibleVerse) => {
+    // Remove punctuation from word
+    const cleanWord = word.replace(/[.,;:!?'"()[\]{}]/g, '');
+    
+    setModalState({
+      isOpen: true,
+      word: cleanWord,
+      bookName: verse.book_name,
+      chapter: verse.chapter,
+      verse: verse.verse
+    });
+  };
+
+  // Render verse with clickable words
+  const renderVerseText = (verse: BibleVerse) => {
+    const words = verse.text.split(' ');
+    
+    return (
+      <p className="bible-text text-text-primary flex-1">
+        {words.map((word, index) => (
+          <span key={index}>
+            <span
+              onClick={() => handleWordClick(word, verse)}
+              className="cursor-pointer hover:text-brand-purple hover:underline transition-colors"
+            >
+              {word}
+            </span>
+            {index < words.length - 1 && ' '}
+          </span>
+        ))}
+      </p>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-bg-primary">
+      {/* Strong's Modal */}
+      {modalState.isOpen && (
+        <StrongsModal
+          word={modalState.word}
+          bookName={modalState.bookName}
+          chapter={modalState.chapter}
+          verse={modalState.verse}
+          onClose={() => setModalState({ ...modalState, isOpen: false })}
+        />
+      )}
+
       {/* Header */}
       <header className="bg-gradient-radiant shadow-lg border-b border-border-dark sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -561,9 +625,8 @@ export default function BibleReader() {
                     >
                       {verse.verse}
                     </span>
-                    <p className="bible-text text-text-primary flex-1">
-                      {verse.text}
-                    </p>
+                    
+                    {renderVerseText(verse)}
 
                     {/* Action buttons */}
                     <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -631,7 +694,7 @@ export default function BibleReader() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-text-tertiary">
-            Click verse numbers to select • Hover for actions
+            Click verse numbers to select • Click words to study • Hover for actions
           </p>
         </div>
       </main>
