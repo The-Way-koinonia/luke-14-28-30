@@ -2,6 +2,15 @@
 
 import { useState, useEffect } from 'react';
 
+// Define the shape of our Strong's data
+interface StrongsDefinition {
+  strongs_number: string;
+  lemma: string;
+  transliteration: string;
+  pronunciation: string;
+  definition: string;
+}
+
 interface CrossReference {
   to_book: string;
   to_chapter: number;
@@ -21,12 +30,18 @@ interface StrongsModalProps {
 
 export default function StrongsModal({ word, bookName, chapter, verse, onClose }: StrongsModalProps) {
   const [activeTab, setActiveTab] = useState<'strongs' | 'cross-refs'>('strongs');
+  
+  // Cross References State
   const [crossRefs, setCrossRefs] = useState<CrossReference[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingCrossRefs, setLoadingCrossRefs] = useState(false);
 
+  // Strong's Data State
+  const [strongsData, setStrongsData] = useState<StrongsDefinition | null>(null);
+  const [loadingStrongs, setLoadingStrongs] = useState(false);
+
+  // 1. Fetch Cross References (Existing logic)
   useEffect(() => {
-    // Fetch cross-references when modal opens
-    setLoading(true);
+    setLoadingCrossRefs(true);
     fetch(`/api/bible/cross-references?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}`)
       .then(res => res.json())
       .then(data => {
@@ -35,8 +50,28 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
         }
       })
       .catch(err => console.error('Failed to load cross-references:', err))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingCrossRefs(false));
   }, [bookName, chapter, verse]);
+
+  // 2. Fetch Strong's Data (NEW LOGIC)
+  useEffect(() => {
+    // Only fetch if we are on the tab and haven't loaded data yet
+    if (activeTab === 'strongs' && !strongsData) {
+      setLoadingStrongs(true);
+      // Clean punctuation from the word before sending
+      const cleanWord = word.replace(/[.,;:!?'"()[\]{}]/g, '');
+      
+      fetch(`/api/bible/strongs?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}&word=${encodeURIComponent(cleanWord)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setStrongsData(data.data);
+          }
+        })
+        .catch(err => console.error('Failed to load Strongs data:', err))
+        .finally(() => setLoadingStrongs(false));
+    }
+  }, [activeTab, bookName, chapter, verse, word, strongsData]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -88,33 +123,49 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           {activeTab === 'strongs' ? (
             <div>
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  🚧 Strong's concordance data coming soon! This will include the original Greek/Hebrew word, transliteration, pronunciation, and definition.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Word Analysis</h4>
-                  <p className="text-gray-600 dark:text-gray-400">Selected word: <span className="font-medium text-gray-900 dark:text-white">{word}</span></p>
+              {loadingStrongs ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-purple"></div>
+                  <p className="mt-2 text-gray-600 dark:text-gray-400">Looking up definition...</p>
                 </div>
+              ) : strongsData ? (
+                <div className="space-y-6">
+                  {/* Word Header */}
+                  <div className="flex items-baseline gap-4 pb-4 border-b border-gray-100 dark:border-gray-700">
+                    <h2 className="text-3xl font-bold text-brand-purple">{strongsData.lemma}</h2>
+                    <div className="flex flex-col">
+                      <span className="text-lg text-gray-600 dark:text-gray-300 font-serif italic">
+                        {strongsData.transliteration}
+                      </span>
+                      <span className="text-xs text-gray-400">{strongsData.pronunciation}</span>
+                    </div>
+                    <span className="ml-auto text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300 font-mono">
+                      {strongsData.strongs_number}
+                    </span>
+                  </div>
 
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Future Features</h4>
-                  <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400 text-sm">
-                    <li>Strong's Number (e.g., G746, H1234)</li>
-                    <li>Original Language Text</li>
-                    <li>Transliteration & Pronunciation</li>
-                    <li>Complete Definition</li>
-                    <li>Other Occurrences in Scripture</li>
-                  </ul>
+                  {/* Definition */}
+                  <div>
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+                      Definition
+                    </h4>
+                    <p className="text-gray-800 dark:text-gray-200 leading-relaxed text-lg">
+                      {strongsData.definition}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Fallback if no data found
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    No Strong's definition found for this specific word. Try selecting a different word or checking the verse context.
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div>
-              {loading ? (
+              {loadingCrossRefs ? (
                 <div className="text-center py-8">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-purple"></div>
                   <p className="mt-2 text-gray-600 dark:text-gray-400">Loading cross-references...</p>
@@ -126,7 +177,7 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Showing {crossRefs.length} related verses (ordered by relevance)
+                    Showing {crossRefs.length} related verses
                   </p>
                   {crossRefs.map((ref, index) => (
                     <div 
@@ -143,7 +194,7 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
                         </span>
                       </div>
                       <p className="text-gray-700 dark:text-gray-300 text-sm">
-                        {ref.verse_text || 'Loading verse text...'}
+                        {ref.verse_text}
                       </p>
                     </div>
                   ))}
