@@ -5,15 +5,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const word = searchParams.get('word');
   const bookName = searchParams.get('book');
-  const chapter = searchParams.get('chapter');
-  const verse = searchParams.get('verse');
 
-  if (!word || !bookName || !chapter || !verse) {
+  if (!word || !bookName) {
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   }
 
   try {
-    // 1. Get Book ID (You might want a cache or helper for this)
+    // 1. Determine Testament based on Book Name
+    // (Simple heuristic: first 39 books are OT, rest are NT)
     const bookRes = await db.query(
       'SELECT id FROM "KJV_books" WHERE name = $1', 
       [bookName]
@@ -22,37 +21,39 @@ export async function GET(request: Request) {
     if (bookRes.rows.length === 0) {
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
+    
     const bookId = bookRes.rows[0].id;
+    const isOldTestament = bookId <= 39;
+    const tableName = isOldTestament ? 'strongs_hebrew' : 'strongs_greek';
 
-    // 2. Find the Strong's definition for this word in this specific verse context
-    // We match roughly on the word text to find the correct position
-    const strongsRes = await db.query(`
+    // 2. Clean the word for search (remove punctuation)
+    const cleanWord = word.replace(/[.,;:!?'"()[\]{}]/g, '').trim();
+
+    // 3. Perform Smart Search
+    // We look for definitions that CONTAIN the English word or match the transliteration
+    const query = `
       SELECT 
-        vw.strongs_number,
-        COALESCE(sg.lemma, sh.lemma) as lemma,
-        COALESCE(sg.transliteration, sh.transliteration) as transliteration,
-        COALESCE(sg.pronunciation, sh.pronunciation) as pronunciation,
-        COALESCE(sg.definition, sh.definition) as definition
-      FROM verse_words vw
-      LEFT JOIN strongs_greek sg ON vw.strongs_number = sg.strongs_number
-      LEFT JOIN strongs_hebrew sh ON vw.strongs_number = sh.strongs_number
-      WHERE vw.book_id = $1 
-        AND vw.chapter = $2 
-        AND vw.verse = $3 
-        AND LOWER(vw.word_text) = LOWER($4)
-      LIMIT 1
-    `, [bookId, chapter, verse, word.replace(/[.,;:!?]/g, '')]);
+        strongs_number,
+        lemma,
+        transliteration,
+        pronunciation,
+        definition
+      FROM ${tableName}
+      WHERE 
+        definition ILIKE $1 
+        OR 
+        transliteration ILIKE $1
+      ORDER BY 
+        LENGTH(definition) ASC
+      LIMIT 5
+    `;
 
-    if (strongsRes.rows.length === 0) {
-      return NextResponse.json({ 
-        found: false, 
-        message: 'No Strong\'s data found for this word' 
-      });
-    }
+    const matches = await db.query(query, [`%${cleanWord}%`]);
 
     return NextResponse.json({
       success: true,
-      data: strongsRes.rows[0]
+      data: matches.rows.length > 0 ? matches.rows[0] : null, // Return best match
+      alternatives: matches.rows.slice(1) // Send others just in case
     });
 
   } catch (error) {

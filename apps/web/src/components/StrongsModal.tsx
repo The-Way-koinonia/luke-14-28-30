@@ -39,7 +39,7 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
   const [strongsData, setStrongsData] = useState<StrongsDefinition | null>(null);
   const [loadingStrongs, setLoadingStrongs] = useState(false);
 
-  // 1. Fetch Cross References (Existing logic)
+  // 1. Fetch Cross References
   useEffect(() => {
     setLoadingCrossRefs(true);
     fetch(`/api/bible/cross-references?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}`)
@@ -53,12 +53,10 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
       .finally(() => setLoadingCrossRefs(false));
   }, [bookName, chapter, verse]);
 
-  // 2. Fetch Strong's Data (NEW LOGIC)
+  // 2. Fetch Strong's Data
   useEffect(() => {
-    // Only fetch if we are on the tab and haven't loaded data yet
     if (activeTab === 'strongs' && !strongsData) {
       setLoadingStrongs(true);
-      // Clean punctuation from the word before sending
       const cleanWord = word.replace(/[.,;:!?'"()[\]{}]/g, '');
       
       fetch(`/api/bible/strongs?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}&word=${encodeURIComponent(cleanWord)}`)
@@ -126,10 +124,16 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
               {loadingStrongs ? (
                 <div className="text-center py-8">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-purple"></div>
-                  <p className="mt-2 text-gray-600 dark:text-gray-400">Looking up definition...</p>
+                  <p className="mt-2 text-gray-600 dark:text-gray-400">Searching dictionary...</p>
                 </div>
               ) : strongsData ? (
                 <div className="space-y-6">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md mb-4">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      ℹ️ <strong>Note:</strong> Showing dictionary entry for <strong>"{word.replace(/[.,;:!?]/g, '')}"</strong>.
+                    </p>
+                  </div>
+
                   {/* Word Header */}
                   <div className="flex items-baseline gap-4 pb-4 border-b border-gray-100 dark:border-gray-700">
                     <h2 className="text-3xl font-bold text-brand-purple">{strongsData.lemma}</h2>
@@ -155,11 +159,9 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
                   </div>
                 </div>
               ) : (
-                // Fallback if no data found
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    No Strong's definition found for this specific word. Try selecting a different word or checking the verse context.
-                  </p>
+                <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <p className="text-gray-500 mb-2">Definition not found.</p>
+                  <p className="text-xs text-gray-400">Try selecting a root word.</p>
                 </div>
               )}
             </div>
