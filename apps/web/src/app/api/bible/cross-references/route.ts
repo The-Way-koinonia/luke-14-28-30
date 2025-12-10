@@ -27,28 +27,26 @@ export async function GET(request: NextRequest) {
       );
     } 
 
-    const bookId = bookResult.rows[0].id;
-
     // Fetch cross-references for this verse
-    const crossRefsResult = await pool.query(  // ← Add .query here
+    const crossRefsResult = await pool.query(
       `SELECT 
-        bb.name as to_book,
+        cr.to_book,
         cr.to_chapter,
         cr.to_verse_start,
         cr.to_verse_end,
         cr.votes,
         bv.text as verse_text
       FROM cross_references cr
-      JOIN bible_books bb ON cr.to_book_id = bb.id
-      LEFT JOIN bible_verses bv ON bv.book_id = cr.to_book_id 
+      JOIN bible_books bb ON cr.to_book = bb.name
+      LEFT JOIN bible_verses bv ON bv.book_id = bb.id 
         AND bv.chapter = cr.to_chapter 
         AND bv.verse = cr.to_verse_start
-      WHERE cr.from_book_id = $1 
+      WHERE cr.from_book = $1 
         AND cr.from_chapter = $2 
         AND cr.from_verse = $3
       ORDER BY cr.votes DESC
       LIMIT 20`,
-      [bookId, chapter, verse]
+      [book, chapter, verse]
     );
 
     return NextResponse.json({

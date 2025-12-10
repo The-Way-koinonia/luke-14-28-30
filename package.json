@@ -22,6 +22,8 @@
     "db:import": "node database/scripts/import-bible-verses.js"
   },
   "devDependencies": {
+    "better-sqlite3": "^12.5.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "engines": {
