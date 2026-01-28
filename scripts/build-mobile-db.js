@@ -65,7 +65,11 @@ db.exec(`
     kjv_def TEXT
   );
   
-  -- CREATE VIRTUAL TABLE verses_fts USING fts5(text, content='bible_verses');
+  CREATE VIRTUAL TABLE verses_fts USING fts5(text, content='bible_verses', content_rowid='rowid');
+    
+  -- Triggers to keep FTS index in sync (optional but good practice if we were modifying data, 
+  -- here we just need to populate it once).
+  -- For read-only DB build, we can just INSERT into it.
 `);
 
 // 2. Load Dictionary Data
@@ -109,6 +113,7 @@ const books = kjvData.books;
 
 const insertBook = db.prepare('INSERT INTO bible_books (id, name, testament) VALUES (?, ?, ?)');
 const insertVerse = db.prepare('INSERT INTO bible_verses (book_id, chapter, verse, text) VALUES (?, ?, ?, ?)');
+const insertFts = db.prepare('INSERT INTO verses_fts (rowid, text) VALUES (?, ?)');
 
 const transaction = db.transaction(() => {
   let bookIdCounter = 1;
@@ -119,7 +124,9 @@ const transaction = db.transaction(() => {
 
     for (const chapter of book.chapters) {
       for (const verse of chapter.verses) {
-        insertVerse.run(bookId, verse.chapter, verse.verse, verse.text);
+        const info = insertVerse.run(bookId, verse.chapter, verse.verse, verse.text);
+        // Populate FTS table using the rowid from the main table
+        insertFts.run(info.lastInsertRowid, verse.text);
       }
     }
   }

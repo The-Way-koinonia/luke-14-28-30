@@ -1,65 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-
-// Cache the data in memory to avoid reading files on every request
-// In a serverless environment, this might be re-initialized, but acceptable for this scale.
-let kjvData: any | null = null;
-let hebrewDictionary: Record<string, any> | null = null;
-let greekDictionary: Record<string, any> | null = null;
-
-async function loadData() {
-  console.log('Current working directory:', process.cwd());
-  
-  if (!kjvData) {
-    // Assuming CWD is apps/web
-    const dataPath = path.join(process.cwd(), 'src/data/KJV_test.json');
-    console.log('Loading KJV data from:', dataPath);
-    const fileContent = await fs.readFile(dataPath, 'utf-8');
-    kjvData = JSON.parse(fileContent);
-  }
-
-  if (!hebrewDictionary) {
-    const dictPath = path.join(process.cwd(), '../../strongs/hebrew/strongs-hebrew-dictionary.js');
-    console.log('Loading Hebrew dictionary from:', dictPath);
-    try {
-        const fileContent = await fs.readFile(dictPath, 'utf-8');
-        // Robustly extract JSON object by finding outer braces
-        const startIndex = fileContent.indexOf('{');
-        const endIndex = fileContent.lastIndexOf('}');
-        if (startIndex !== -1 && endIndex !== -1) {
-            const jsonStr = fileContent.substring(startIndex, endIndex + 1);
-            hebrewDictionary = JSON.parse(jsonStr);
-        } else {
-            console.error('Could not find JSON object in Hebrew dictionary');
-            hebrewDictionary = {};
-        }
-    } catch (e) {
-        console.error("Failed to load Hebrew dictionary", e);
-        hebrewDictionary = {};
-    }
-  }
-
-  if (!greekDictionary) {
-    const dictPath = path.join(process.cwd(), '../../strongs/greek/strongs-greek-dictionary.js');
-    console.log('Loading Greek dictionary from:', dictPath);
-    try {
-        const fileContent = await fs.readFile(dictPath, 'utf-8');
-        const startIndex = fileContent.indexOf('{');
-        const endIndex = fileContent.lastIndexOf('}');
-        if (startIndex !== -1 && endIndex !== -1) {
-            const jsonStr = fileContent.substring(startIndex, endIndex + 1);
-            greekDictionary = JSON.parse(jsonStr);
-        } else {
-            console.error('Could not find JSON object in Greek dictionary');
-            greekDictionary = {};
-        }
-    } catch (e) {
-        console.error("Failed to load Greek dictionary", e);
-        greekDictionary = {};
-    }
-  }
-}
+import { pool } from "/Users/colinmontes/The Way/The Way/apps/web/src/lib/db/index";
 
 export async function GET(request: NextRequest) {
   try {
@@ -76,27 +16,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await loadData();
+    // 1. Fetch verse text from Database
+    const verseResult = await pool.query(
+      `SELECT bv.text 
+       FROM bible_verses bv
+       JOIN bible_books bb ON bv.book_id = bb.id
+       WHERE bb.name = $1 AND bv.chapter = $2 AND bv.verse = $3
+       LIMIT 1`,
+      [book, chapter, verse]
+    );
 
-    // Traverse the structured JSON
-    const bookData = kjvData?.books?.find((b: any) => b.name.toLowerCase() === book.toLowerCase());
-    
-    if (!bookData) {
-        return NextResponse.json({ success: false, error: `Book '${book}' not found` }, { status: 404 });
+    if (verseResult.rows.length === 0) {
+      return NextResponse.json({ success: false, error: `Verse not found: ${book} ${chapter}:${verse}` }, { status: 404 });
     }
 
-    const chapterData = bookData.chapters.find((c: any) => c.chapter === chapter);
+    const verseText = verseResult.rows[0].text;
 
-    if (!chapterData) {
-        return NextResponse.json({ success: false, error: `Chapter ${chapter} not found in ${book}` }, { status: 404 });
-    }
-
-    const targetVerse = chapterData.verses.find((v: any) => v.verse === verse);
-
-    if (!targetVerse) {
-        return NextResponse.json({ success: false, error: `Verse ${verse} not found in ${book} ${chapter}` }, { status: 404 });
-    }
-
+    // 2. Parse text to find Strong's ID for the word
     // Regex to match <w> tags and extract content
     // Example: <w lemma="strong:G3588 strong:G5330 ..." ...>the Pharisees</w>
     const wTagRegex = /<w\s+([^>]+)>([^<]+)<\/w>/g;
@@ -106,7 +42,7 @@ export async function GET(request: NextRequest) {
     // Clean input word (remove punctuation)
     const cleanWord = word.replace(/[.,;!?]/g, '').toLowerCase();
 
-    while ((match = wTagRegex.exec(targetVerse.text)) !== null) {
+    while ((match = wTagRegex.exec(verseText)) !== null) {
         const [_, attributes, text] = match;
         
         // Check if the word inside the tag matches our target word
@@ -126,9 +62,6 @@ export async function GET(request: NextRequest) {
                 // G3588 is "the". G5330 is "Pharisees". Order is usually "Article Noun".
                 // So taking the last ID is often the substantive word.
                 strongsId = ids[ids.length - 1]; 
-                
-                // Debug log
-                // console.log(`Matched '${cleanWord}' in '${text}'. IDs: ${ids.join(', ')} -> Selected: ${strongsId}`);
                 break;
             }
         }
@@ -138,34 +71,26 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Strong\'s number not found for word' }, { status: 404 });
     }
 
-    // Customize debug logging
-    // console.log(`Found Strong's ID for '${cleanWord}': ${strongsId}`);
+    // Normalize ID: H0430 -> H430 
+    // The DB likely stores "H430" or "G25" (without leading zeros for H/G usually, or maybe with?)
+    // Let's check schema/data convention. Common convention varies.
+    // The previous code did: strongsId = strongsId.replace(/^([GH])0+/, '$1');
+    // We will keep this normalization to match likely DB keys.
+    const normalizedStrongsId = strongsId.replace(/^([GH])0+/, '$1');
 
-    // Normalize ID: H0430 -> H430
-    const rawId = strongsId;
-    strongsId = strongsId.replace(/^([GH])0+/, '$1');
-    // console.log(`Normalized ID: ${rawId} -> ${strongsId}`);
+    // 3. Fetch Definition from Database
+    const defResult = await pool.query(
+      `SELECT * FROM strongs_definitions WHERE strongs_number = $1`,
+      [normalizedStrongsId]
+    );
 
-    // Look up definition
-    let definition = null;
-    if (strongsId.startsWith('H')) {
-        // console.log(`Looking up ${strongsId} in Hebrew dictionary. Loaded? ${!!hebrewDictionary}`);
-        if (hebrewDictionary) definition = hebrewDictionary[strongsId];
-    } else if (strongsId.startsWith('G')) {
-        if (greekDictionary) definition = greekDictionary[strongsId];
-    }
-
-    if (!definition) {
-         // Return debug info in error
+    if (defResult.rows.length === 0) {
          return NextResponse.json({ 
             success: false, 
-            error: 'Definition not found',
+            error: 'Definition not found in database',
             debug: {
-                rawId,
-                normalizedId: strongsId,
-                foundInHebrew: hebrewDictionary ? !!hebrewDictionary[strongsId] : false,
-                foundInGreek: greekDictionary ? !!greekDictionary[strongsId] : false,
-                hebrewDictKeys: hebrewDictionary ? Object.keys(hebrewDictionary).slice(0, 5) : []
+                rawId: strongsId,
+                normalizedId: normalizedStrongsId
             }
          }, { status: 404 });
     }
@@ -173,8 +98,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        strongsId,
-        ...definition
+        strongsId: normalizedStrongsId,
+        ...defResult.rows[0]
       }
     });
 
@@ -184,9 +109,7 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Internal server error', 
-        details: error.message,
-        stack: error.stack,
-        cwd: process.cwd()
+        details: error.message
       },
       { status: 500 }
     );
