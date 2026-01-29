@@ -96,22 +96,34 @@ CREATE TABLE word_strongs_mapping (
 
 -- User highlights (yellow, green, blue, pink highlighting)
 -- Local-first: Works offline, syncs when online
+-- User highlights (yellow, green, blue, pink highlighting)
+-- Local-first: Works offline, syncs when online
+-- UPDATED: Supports multiple highlights per verse (different colors)
 CREATE TABLE user_highlights (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,  -- From NextAuth
+    user_id TEXT NOT NULL,
     book_id INTEGER NOT NULL,
     chapter INTEGER NOT NULL,
     verse INTEGER NOT NULL,
     color TEXT NOT NULL CHECK (color IN ('yellow', 'green', 'blue', 'pink', 'orange', 'purple')),
-    note TEXT,  -- Optional note attached to highlight
+    note TEXT,  -- Optional note attached to this specific highlight
+    
+    -- Sync & Conflict Resolution columns
     created_at TEXT NOT NULL,  -- ISO 8601: "2025-01-15T10:30:00Z"
     updated_at TEXT NOT NULL,
     synced_at TEXT,  -- NULL = not yet synced to server
     server_id INTEGER,  -- Server-side ID after sync
+    version INTEGER DEFAULT 1, -- Conflict resolution
+    last_modified_device TEXT, -- Debugging/Info
+    
     FOREIGN KEY (book_id) REFERENCES bible_books(id),
-    UNIQUE(user_id, book_id, chapter, verse)
+    
+    -- NEW CONSTRAINT: User can have multiple highlights per verse,
+    -- but only one of each color per verse (prevents accidental duplicates)
+    UNIQUE(user_id, book_id, chapter, verse, color)
 );
 
+-- User bookmarks (save verses for quick access)
 -- User bookmarks (save verses for quick access)
 CREATE TABLE user_bookmarks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,10 +135,17 @@ CREATE TABLE user_bookmarks (
     created_at TEXT NOT NULL,
     synced_at TEXT,
     server_id INTEGER,
+    -- Conflict resolution
+    updated_at TEXT DEFAULT (datetime('now')), -- Added for consistency
+    version INTEGER DEFAULT 1,
+    last_modified_device TEXT,
+    
     FOREIGN KEY (book_id) REFERENCES bible_books(id),
     UNIQUE(user_id, book_id, chapter, verse)
 );
 
+-- Memory verses (for memorization tracking)
+-- Includes spaced repetition data
 -- Memory verses (for memorization tracking)
 -- Includes spaced repetition data
 CREATE TABLE user_memory_verses (
@@ -145,10 +164,17 @@ CREATE TABLE user_memory_verses (
     added_at TEXT NOT NULL,
     synced_at TEXT,
     server_id INTEGER,
+    -- Conflict resolution
+    updated_at TEXT DEFAULT (datetime('now')), -- Added for consistency
+    version INTEGER DEFAULT 1,
+    last_modified_device TEXT,
+    
     FOREIGN KEY (book_id) REFERENCES bible_books(id),
     UNIQUE(user_id, book_id, chapter, verse)
 );
 
+-- Reading progress tracking
+-- Synced with server so users can switch devices
 -- Reading progress tracking
 -- Synced with server so users can switch devices
 CREATE TABLE user_reading_progress (
@@ -160,10 +186,17 @@ CREATE TABLE user_reading_progress (
     started_at TEXT NOT NULL,
     last_read_at TEXT,
     synced_at TEXT,
+    -- Conflict resolution
+    updated_at TEXT DEFAULT (datetime('now')), -- Added for consistency
+    version INTEGER DEFAULT 1,
+    last_modified_device TEXT,
+
     UNIQUE(user_id, plan_id)
 );
 
 -- User notes (personal Bible study notes)
+-- User notes (personal Bible study notes)
+-- NORMALIZED: Tags removed to separate table
 CREATE TABLE user_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
@@ -172,13 +205,59 @@ CREATE TABLE user_notes (
     verse INTEGER,
     title TEXT,
     content TEXT NOT NULL,
-    tags TEXT,  -- JSON array: '["prayer", "study"]'
+    -- REMOVED: tags TEXT (no longer storing as JSON)
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     synced_at TEXT,
     server_id INTEGER,
+    -- Conflict resolution
+    version INTEGER DEFAULT 1,
+    last_modified_device TEXT,
+    
     FOREIGN KEY (book_id) REFERENCES bible_books(id)
 );
+
+-- ================================================================
+-- NORMALIZED TAGS SYSTEM
+-- ================================================================
+
+-- New table: All available tags (controlled vocabulary)
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    tag_name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    -- Conflict resolution triggers need these for consistency, though tags are simple
+    version INTEGER DEFAULT 1, 
+    last_modified_device TEXT, 
+    synced_at TEXT,
+    
+    -- Each user can only create a tag name once (case-insensitive)
+    UNIQUE(user_id, tag_name COLLATE NOCASE)
+);
+
+-- Join table: Links notes to tags (many-to-many relationship)
+CREATE TABLE note_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    note_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    -- Conflict resolution
+    version INTEGER DEFAULT 1,
+    last_modified_device TEXT,
+    synced_at TEXT,
+    
+    FOREIGN KEY (note_id) REFERENCES user_notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+    
+    UNIQUE(note_id, tag_id)
+);
+
+-- Note Indexes (Updated)
+CREATE INDEX idx_note_tags_tag ON note_tags(tag_id);
+CREATE INDEX idx_note_tags_note ON note_tags(note_id);
+CREATE INDEX idx_tags_user ON tags(user_id);
+CREATE INDEX idx_tags_name ON tags(user_id, tag_name COLLATE NOCASE);
 
 -- ================================================================
 -- SECTION 3: SEARCH & PERFORMANCE
@@ -190,11 +269,10 @@ CREATE VIRTUAL TABLE bible_verses_fts USING fts5(
     book_name,
     chapter,
     verse,
-    text,
-    content='bible_verses',
-    content_rowid='id'
+    text
 );
 
+-- Triggers to keep FTS index updated
 -- Triggers to keep FTS index updated
 CREATE TRIGGER bible_verses_fts_insert AFTER INSERT ON bible_verses BEGIN
     INSERT INTO bible_verses_fts(rowid, book_name, chapter, verse, text)
@@ -205,6 +283,24 @@ CREATE TRIGGER bible_verses_fts_insert AFTER INSERT ON bible_verses BEGIN
         NEW.verse,
         NEW.text
     FROM bible_books b WHERE b.id = NEW.book_id;
+END;
+
+-- UPDATE trigger: delete then insert
+CREATE TRIGGER bible_verses_fts_update AFTER UPDATE ON bible_verses BEGIN
+    DELETE FROM bible_verses_fts WHERE rowid = OLD.id;
+    INSERT INTO bible_verses_fts(rowid, book_name, chapter, verse, text)
+    SELECT
+        NEW.id,
+        b.name,
+        NEW.chapter,
+        NEW.verse,
+        NEW.text
+    FROM bible_books b WHERE b.id = NEW.book_id;
+END;
+
+-- DELETE trigger: remove from index
+CREATE TRIGGER bible_verses_fts_delete AFTER DELETE ON bible_verses BEGIN
+    DELETE FROM bible_verses_fts WHERE rowid = OLD.id;
 END;
 
 -- ================================================================
@@ -255,6 +351,200 @@ ON user_memory_verses(user_id, next_review_date);
 -- METADATA TABLE (App version, last update, etc.)
 -- ================================================================
 
+-- ================================================================
+-- CONFLICT RESOLUTION & SYNC TRIGGERS
+-- ================================================================
+
+-- Trigger Template: Auto-increment version on update
+-- Applied to: user_highlights, user_bookmarks, user_memory_verses, user_reading_progress, user_notes
+
+-- Trigger Template: Auto-increment version on update
+-- Applied to: user_highlights, user_bookmarks, user_memory_verses, user_reading_progress, user_notes
+
+CREATE TRIGGER user_highlights_version_update 
+AFTER UPDATE ON user_highlights
+FOR EACH ROW
+WHEN NEW.version = OLD.version
+BEGIN
+    UPDATE user_highlights 
+    SET version = version + 1, updated_at = datetime('now')
+    WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER user_bookmarks_version_update 
+AFTER UPDATE ON user_bookmarks
+FOR EACH ROW
+WHEN NEW.version = OLD.version
+BEGIN
+    UPDATE user_bookmarks 
+    SET version = version + 1, updated_at = datetime('now')
+    WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER user_memory_verses_version_update 
+AFTER UPDATE ON user_memory_verses
+FOR EACH ROW
+WHEN NEW.version = OLD.version
+BEGIN
+    UPDATE user_memory_verses 
+    SET version = version + 1, updated_at = datetime('now')
+    WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER user_notes_version_update 
+AFTER UPDATE ON user_notes
+FOR EACH ROW
+WHEN NEW.version = OLD.version
+BEGIN
+    UPDATE user_notes 
+    SET version = version + 1, updated_at = datetime('now')
+    WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER user_reading_progress_version_update 
+AFTER UPDATE ON user_reading_progress
+FOR EACH ROW
+WHEN NEW.version = OLD.version
+BEGIN
+    UPDATE user_reading_progress 
+    SET version = version + 1, updated_at = datetime('now')
+    WHERE id = NEW.id;
+END;
+
+-- ================================================================
+-- DELETION TRACKING (Tombstones)
+-- ================================================================
+
+CREATE TABLE deleted_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_name TEXT NOT NULL CHECK (table_name IN (
+        'user_highlights', 'user_bookmarks', 'user_memory_verses',
+        'user_reading_progress', 'user_notes', 'note_tags', 'tags'
+    )),
+    server_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    deleted_at TEXT NOT NULL,
+    synced_at TEXT,
+    UNIQUE(table_name, server_id)
+);
+
+CREATE INDEX idx_deleted_items_not_synced ON deleted_items(user_id, synced_at) WHERE synced_at IS NULL;
+CREATE INDEX idx_deleted_items_synced ON deleted_items(synced_at) WHERE synced_at IS NOT NULL;
+
+-- Deletion Triggers (Only track if item was synced i.e. has server_id)
+
+CREATE TRIGGER user_highlights_track_deletion AFTER DELETE ON user_highlights
+FOR EACH ROW WHEN OLD.server_id IS NOT NULL
+BEGIN
+    INSERT INTO deleted_items (table_name, server_id, user_id, deleted_at)
+    VALUES ('user_highlights', OLD.server_id, OLD.user_id, datetime('now'));
+END;
+
+CREATE TRIGGER user_bookmarks_track_deletion AFTER DELETE ON user_bookmarks
+FOR EACH ROW WHEN OLD.server_id IS NOT NULL
+BEGIN
+    INSERT INTO deleted_items (table_name, server_id, user_id, deleted_at)
+    VALUES ('user_bookmarks', OLD.server_id, OLD.user_id, datetime('now'));
+END;
+
+CREATE TRIGGER user_memory_verses_track_deletion AFTER DELETE ON user_memory_verses
+FOR EACH ROW WHEN OLD.server_id IS NOT NULL
+BEGIN
+    INSERT INTO deleted_items (table_name, server_id, user_id, deleted_at)
+    VALUES ('user_memory_verses', OLD.server_id, OLD.user_id, datetime('now'));
+END;
+
+CREATE TRIGGER user_reading_progress_track_deletion AFTER DELETE ON user_reading_progress
+FOR EACH ROW WHEN OLD.server_id IS NOT NULL
+BEGIN
+    INSERT INTO deleted_items (table_name, server_id, user_id, deleted_at)
+    VALUES ('user_reading_progress', OLD.server_id, OLD.user_id, datetime('now'));
+END;
+
+CREATE TRIGGER user_notes_track_deletion AFTER DELETE ON user_notes
+FOR EACH ROW WHEN OLD.server_id IS NOT NULL
+BEGIN
+    INSERT INTO deleted_items (table_name, server_id, user_id, deleted_at)
+    VALUES ('user_notes', OLD.server_id, OLD.user_id, datetime('now'));
+END;
+
+CREATE TRIGGER tags_track_deletion AFTER DELETE ON tags
+FOR EACH ROW WHEN OLD.id IS NOT NULL -- Tags use local ID for sync in this design? Re-verify implementation plan. User output said "Tags don't have server_id, using local id". But wait, if they sync, they usually have server_id. Let's start with local ID as requested
+BEGIN
+    INSERT INTO deleted_items (table_name, server_id, user_id, deleted_at)
+    VALUES ('tags', OLD.id, OLD.user_id, datetime('now'));
+END;
+
+-- ================================================================
+-- READING LOCATION SHARING
+-- ================================================================
+
+CREATE TABLE user_current_location (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL UNIQUE,
+    book_id INTEGER NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse INTEGER,
+    last_updated TEXT NOT NULL,
+    synced_at TEXT,
+    server_id INTEGER,
+    reading_plan_id INTEGER,
+    session_start TEXT,
+    FOREIGN KEY (book_id) REFERENCES bible_books(id)
+);
+CREATE INDEX idx_current_location_sync ON user_current_location(user_id, synced_at) WHERE synced_at IS NULL;
+
+CREATE TABLE reading_location_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL UNIQUE,
+    visibility TEXT NOT NULL DEFAULT 'friends' CHECK (visibility IN ('public', 'friends', 'private')),
+    show_on_profile INTEGER DEFAULT 1,
+    share_reading_history INTEGER DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    synced_at TEXT
+);
+
+CREATE TABLE reading_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    book_id INTEGER NOT NULL,
+    chapter_start INTEGER NOT NULL,
+    chapter_end INTEGER NOT NULL,
+    verse_start INTEGER,
+    verse_end INTEGER,
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    duration_seconds INTEGER,
+    reading_plan_id INTEGER,
+    synced_at TEXT,
+    server_id INTEGER,
+    FOREIGN KEY (book_id) REFERENCES bible_books(id)
+);
+CREATE INDEX idx_reading_sessions_user ON reading_sessions(user_id, started_at DESC);
+CREATE INDEX idx_reading_sessions_not_synced ON reading_sessions(user_id, synced_at) WHERE synced_at IS NULL;
+
+CREATE VIEW v_user_reading_status AS
+SELECT 
+    ucl.user_id, ucl.book_id, bb.name as book_name, bb.testament, ucl.chapter, ucl.verse,
+    ucl.last_updated, ucl.reading_plan_id, rlp.visibility, rlp.show_on_profile,
+    bb.name || ' ' || ucl.chapter || CASE WHEN ucl.verse IS NOT NULL THEN ':' || ucl.verse ELSE '' END as readable_reference
+FROM user_current_location ucl
+JOIN bible_books bb ON bb.id = ucl.book_id
+LEFT JOIN reading_location_preferences rlp ON rlp.user_id = ucl.user_id;
+
+CREATE TRIGGER update_current_reading_location
+AFTER UPDATE ON user_reading_progress
+FOR EACH ROW
+BEGIN
+    INSERT INTO user_current_location (user_id, book_id, chapter, last_updated, reading_plan_id)
+    VALUES (NEW.user_id, 1, NEW.current_day, datetime('now'), NEW.plan_id) -- Placeholder book_id=1
+    ON CONFLICT(user_id) DO UPDATE SET last_updated = datetime('now'), synced_at = NULL;
+END;
+
+-- ================================================================
+-- METADATA TABLE (App version, last update, etc.)
+-- ================================================================
+
 CREATE TABLE database_metadata (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -263,10 +553,10 @@ CREATE TABLE database_metadata (
 
 -- Insert initial metadata
 INSERT INTO database_metadata (key, value, updated_at) VALUES
-('version', '1.0.0', datetime('now')),
+('version', '1.1.0', datetime('now')), -- Bumped version
 ('bible_version', 'KJV', datetime('now')),
 ('last_updated', datetime('now'), datetime('now')),
-('schema_version', '1', datetime('now'));
+('schema_version', '2', datetime('now')); -- Bumped schema version
 
 -- ================================================================
 -- SAMPLE DATA (for reference - actual data from scrollmapper)
