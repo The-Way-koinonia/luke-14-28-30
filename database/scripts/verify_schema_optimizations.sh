@@ -2,7 +2,7 @@
 set -e
 
 DB_FILE="test_verification.db"
-SCHEMA_FILE="schema-sqlite-mobile.sql"
+SCHEMA_FILE="../schema-sqlite-mobile.sql"
 
 # Clean up
 rm -f $DB_FILE

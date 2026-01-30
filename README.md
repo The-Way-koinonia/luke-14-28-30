@@ -8,7 +8,7 @@ A faith-centered social network and Bible study app with advanced biblical study
 the-way/
 ├── apps/
 │   ├── web/              # Next.js web application
-│   └── mobile/           # React Native mobile app (coming soon)
+│   └── mobile/           # React Native mobile app
 ├── packages/
 │   └── types/            # Shared TypeScript types
 ├── database/
@@ -107,6 +107,11 @@ npm run db:logs
 npm run db:shell
 ```
 
+### Mobile Database (SQLite)
+The mobile app uses a local SQLite database that ships with the app.
+- Schema: `database/schema-sqlite-mobile.sql`
+- Verification: `scripts/verify_schema_optimizations.sh`
+
 ### Inside PostgreSQL Shell
 
 ```sql
@@ -184,9 +189,12 @@ NEXTAUTH_URL="http://localhost:3000"
 - **Auth:** NextAuth.js
 - **Styling:** Tailwind CSS
 
-### Mobile (React Native) - Coming Soon
+### Mobile (React Native)
 - **Framework:** Expo SDK 52+
-- **Database:** SQLite (offline-first)
+- **Database:** SQLite (Offline-first architecture)
+  - Full-Text Search (FTS5) for instant Bible study
+  - "Last Write Wins" conflict resolution for multi-device sync
+  - Normalized tagging and flexible highlighting system
 - **Navigation:** Expo Router
 - **State:** Zustand + React Query
 
@@ -240,8 +248,8 @@ npm run build:web
 
 ## 📖 Documentation
 
-- [Architecture Overview](./docs/ARCHITECTURE.md) (coming soon)
-- [API Documentation](./docs/API.md) (coming soon)
+- [Project Structure](./PROJECT_STRUCTURE.md) - Detailed breakdown of the monorepo
+- [Database Migration Guide](./MIGRATION_GUIDE.md) - How to manage database changes
 - [Mobile Development](./docs/MOBILE.md) (coming soon)
 
 ## 🗺️ Roadmap
@@ -251,10 +259,10 @@ npm run build:web
 - [x] Next.js web app initialization
 - [x] Monorepo structure
 - [ ] Authentication (NextAuth)
-- [ ] Bible reading API
+- [x] Bible reading API (Schema ready)
 - [ ] Social feed API
-- [ ] React Native mobile app
-- [ ] Offline Bible reading (mobile)
+- [/] React Native mobile app (Active Development)
+- [x] Offline Bible reading (Schema & Sync Logic)
 - [ ] Church administration features
 
 ## 📄 License

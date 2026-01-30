@@ -1,4 +1,27 @@
 // Shared TypeScript types for The Way monorepo
+/**
+ * SHARED TYPES FOR THE WAY MONOREPO
+ * 
+ * Purpose: These types represent the canonical data models shared across all applications
+ * in The Way monorepo including mobile app, web app, and API server. These types define
+ * the rich, fully-populated data structures used for API communication and UI rendering.
+ * 
+ * Characteristics:
+ * - Includes all fields needed for complete feature functionality
+ * - Contains optional "populated fields" that may be joined from related tables
+ * - Optimized for developer experience and type safety across the entire platform
+ * - Represents the source of truth for cross-platform data contracts
+ * 
+ * Guidelines:
+ * - Use these types when communicating between client and server via API
+ * - Use these types when rendering UI components that need rich data
+ * - Changes to these types affect all apps - coordinate with all teams
+ * - Breaking changes require migration plans for all consuming applications
+ * 
+ * Note: Individual apps may have their own internal types optimized for specific needs
+ * like persistence, caching, or offline sync. Those app-specific types should transform
+ * to/from these shared types at application boundaries.
+ */
 
 // ============================================
 // BIBLE TYPES
@@ -68,6 +91,14 @@ export interface UserProfile extends User {
 // SOCIAL TYPES
 // ============================================
 
+/**
+ * Complete Post representation with all metadata and optional populated relationships.
+ * This is the canonical Post type used across all applications for API communication.
+ * 
+ * NOTE: Individual apps may have their own internal Post types optimized for specific
+ * needs (e.g., mobile app has a lean version for SQLite persistence). Those should
+ * transform to/from this shared type at application boundaries.
+ */
 export interface Post {
   id: string;
   user_id: string;
@@ -180,6 +211,60 @@ export interface ReadingPlan {
   end_date?: Date;
   is_completed: boolean;
   created_at: Date;
+}
+
+/**
+ * Controls who can see the user's current reading location.
+ */
+export interface ReadingLocationPreferences {
+  id: string;
+  user_id: string;
+  visibility: 'public' | 'friends' | 'private';
+  show_on_profile: boolean;
+  share_reading_history: boolean;
+  updated_at: Date;
+  synced_at?: Date;
+}
+
+/**
+ * Tracks reading sessions for statistics and accountability features.
+ */
+export interface ReadingSession {
+  id: string;
+  user_id: string;
+  book_id: number;
+  chapter_start: number;
+  chapter_end: number;
+  verse_start?: number;
+  verse_end?: number;
+  started_at: Date;
+  ended_at?: Date;
+  duration_seconds?: number;
+  reading_plan_id?: string;
+  created_at: Date;
+  synced_at?: Date;
+}
+
+/**
+ * Represents a user-created tag that can be applied to notes.
+ */
+export interface Tag {
+  id: string;
+  user_id: string;
+  tag_name: string;
+  created_at: Date;
+  synced_at?: Date;
+}
+
+/**
+ * Links tags to notes in a many-to-many relationship.
+ */
+export interface NoteTag {
+  id: string;
+  note_id: string;
+  tag_id: string;
+  created_at: Date;
+  synced_at?: Date;
 }
 
 // ============================================
