@@ -19,7 +19,7 @@
     "db:down": "cd database && docker compose down",
     "db:logs": "cd database && docker logs theway-postgres-1",
     "db:shell": "cd database && docker exec -it theway-postgres-1 psql -U the_way_user -d the_way",
-    "db:import": "node database/scripts/import-bible-verses.js"
+    "db:import": "ts-node database/scripts/import-bible-verses.ts"
   },
   "devDependencies": {
     "better-sqlite3": "^12.5.0",

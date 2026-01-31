@@ -1,5 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { checkForDatabaseUpdates } from '@/utils/bibleDb';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -11,6 +13,13 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    // Check for database updates in background
+    checkForDatabaseUpdates({ silent: true }).catch(err => {
+        console.error('Startup update check failed:', err);
+    });
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
