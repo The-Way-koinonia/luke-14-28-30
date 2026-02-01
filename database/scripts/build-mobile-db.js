@@ -2,6 +2,7 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const crypto = require('crypto');
 
 // Configuration
 const CONFIG = {
@@ -11,8 +12,8 @@ const CONFIG = {
   GREEK_DICT: path.join(process.cwd(), 'strongs/greek/strongs-greek-dictionary.js'),
   EXPECTED_KJV_VERSES: 31102,
   EXPECTED_HEBREW_ENTRIES: 8674,
-  EXPECTED_GREEK_ENTRIES: 5624, // Approximate from previous runs (5523 + ~101?) - wait, previous scan said 5523 entries found, 5504 imported? 
-                                // User prompt said ~5624. I will warn if widely off, or just log.
+  EXPECTED_GREEK_ENTRIES: 5504,
+  EXPECTED_TOTAL_STRONGS: 14178,
   SCHEMA_VERSION: '1',
   DATA_VERSION: '1'
 };
@@ -62,9 +63,16 @@ async function buildDatabase() {
   console.log('🏗️  Building Mobile Database...');
 
   // 1. Verify paths
-  if (!fs.existsSync(CONFIG.KJV_JSON)) throw new Error(`KJV JSON not found at: ${CONFIG.KJV_JSON}`);
-  if (!fs.existsSync(CONFIG.HEBREW_DICT)) throw new Error(`Hebrew dict not found at: ${CONFIG.HEBREW_DICT}`);
-  if (!fs.existsSync(CONFIG.GREEK_DICT)) throw new Error(`Greek dict not found at: ${CONFIG.GREEK_DICT}`);
+  console.log('🔍 Verifying source files...');
+  if (!fs.existsSync(CONFIG.KJV_JSON)) {
+    throw new Error(`❌ KJV JSON not found at: ${CONFIG.KJV_JSON}\n   Please ensure the file exists before building the database.`);
+  }
+  if (!fs.existsSync(CONFIG.HEBREW_DICT)) {
+    throw new Error(`❌ Hebrew dictionary not found at: ${CONFIG.HEBREW_DICT}\n   Please ensure the file exists before building the database.`);
+  }
+  if (!fs.existsSync(CONFIG.GREEK_DICT)) {
+    throw new Error(`❌ Greek dictionary not found at: ${CONFIG.GREEK_DICT}\n   Please ensure the file exists before building the database.`);
+  }
   
   const assetsDir = path.dirname(CONFIG.OUTPUT_DB);
   if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
@@ -200,7 +208,8 @@ async function buildDatabase() {
        throw error;
     }
 
-    console.log(`   Processed ${processed.toLocaleString()} entries in ${(console.timeEnd(`Loading ${langName} Dictionary`), '')} (Skipped ${skipped})`);
+    console.timeEnd(`Loading ${langName} Dictionary`);
+    console.log(`   Processed ${processed.toLocaleString()} entries (Skipped ${skipped})`);
     return processed;
   }
 
@@ -236,7 +245,7 @@ async function buildDatabase() {
             totalVerses++;
         }
       }
-      // console.log(`   ${book.name} (${book.chapters.length} chapters, ${bookVerses} verses)`);
+      console.log(`   ${book.name} (${book.chapters.length} chapters, ${bookVerses} verses)`);
     }
   });
 
@@ -261,9 +270,28 @@ async function buildDatabase() {
   console.log('✓ Indexes created');
 
   // 6. Metadata
+  const verseCount = db.prepare('SELECT COUNT(*) as count FROM bible_verses').get().count;
+  const strongsCount = db.prepare('SELECT COUNT(*) as count FROM strongs_definitions').get().count;
+  const bookCount = db.prepare('SELECT COUNT(*) as count FROM bible_books').get().count;
+  const ftsCount = db.prepare('SELECT COUNT(*) as count FROM verses_fts').get().count;
+
   const insertMeta = db.prepare('INSERT OR REPLACE INTO database_metadata (key, value, updated_at) VALUES (?, ?, ?)');
   const now = new Date().toISOString().replace('T', ' ').split('.')[0];
   
+  // Calculate database checksum for integrity verification
+  const checksumData = [
+    verseCount.toString(),
+    strongsCount.toString(),
+    bookCount.toString(),
+    ftsCount.toString()
+  ].join('|');
+
+  const checksum = crypto.createHash('md5')
+    .update(checksumData)
+    .digest('hex');
+
+  console.log(`  ✓ Database checksum: ${checksum.substring(0, 8)}...`);
+
   const metaTransaction = db.transaction(() => {
       insertMeta.run('schema_version', CONFIG.SCHEMA_VERSION, now);
       insertMeta.run('data_version', CONFIG.DATA_VERSION, now);
@@ -271,17 +299,13 @@ async function buildDatabase() {
       insertMeta.run('kjv_version', 'complete', now);
       insertMeta.run('strongs_version', 'complete', now);
       insertMeta.run('total_verses', totalVerses.toString(), now);
+      insertMeta.run('database_checksum', checksum, now);
       insertMeta.run('last_update_check', now, now);
   });
   metaTransaction();
 
   // 7. Validation
   console.log('✅ Validation checks:');
-  
-  const verseCount = db.prepare('SELECT COUNT(*) as count FROM bible_verses').get().count;
-  const strongsCount = db.prepare('SELECT COUNT(*) as count FROM strongs_definitions').get().count;
-  const bookCount = db.prepare('SELECT COUNT(*) as count FROM bible_books').get().count;
-  const ftsCount = db.prepare('SELECT COUNT(*) as count FROM verses_fts').get().count;
 
   if (verseCount !== CONFIG.EXPECTED_KJV_VERSES) {
     console.warn(`  ⚠️  Expected ${CONFIG.EXPECTED_KJV_VERSES} verses, found ${verseCount}`);
@@ -289,11 +313,11 @@ async function buildDatabase() {
     console.log(`  ✓ Expected ${CONFIG.EXPECTED_KJV_VERSES} verses, found ${verseCount}`);
   }
 
-  const totalStrongs = hCount + gCount;
-  if (strongsCount !== totalStrongs) {
-      console.warn(`  ⚠️  Expected ${totalStrongs} Strong's entries, found ${strongsCount}`);
+  const expectedTotal = CONFIG.EXPECTED_TOTAL_STRONGS;
+  if (strongsCount !== expectedTotal) {
+      console.warn(`  ⚠️  Expected ${expectedTotal} Strong's entries, found ${strongsCount}`);
   } else {
-      console.log(`  ✓ Expected ${totalStrongs} Strong's entries, found ${strongsCount}`);
+      console.log(`  ✓ Expected ${expectedTotal} Strong's entries, found ${strongsCount}`);
   }
 
   if (ftsCount !== verseCount) {

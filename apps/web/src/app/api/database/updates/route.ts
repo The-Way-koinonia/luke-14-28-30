@@ -1,106 +1,107 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { DatabaseUpdate, DatabaseChange } from '@the-way/types';
 
-// Force dynamic to ensure we check files on every request (though they are static, 
-// in a real deployment this might be cached or read from DB)
-export const dynamic = 'force-dynamic';
+// Directory where delta update JSON files are stored
+// Assuming apps/web is CWD, so data is at ../../data
+const UPDATES_DIR = path.join(process.cwd(), '../../data/updates');
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const clientVersionParam = searchParams.get('current_version');
-    const clientVersion = clientVersionParam ? parseInt(clientVersionParam, 10) : 0;
-
-    // Directory where updates are stored
-    // In production (Vercel/Docker), we need to ensure this path is correct. 
-    // For now assuming standard Next.js structure.
-    const updatesDir = path.join(process.cwd(), 'src/data/updates');
+    const currentVersionParam = searchParams.get('current_version');
     
-    if (!fs.existsSync(updatesDir)) {
-      // No updates directory means no updates found yet
-       return NextResponse.json({
-        latest_version: clientVersion, // No update
-        current_version: clientVersion,
-        has_updates: false,
-        changes: [],
-        update_size_bytes: 0,
-        description: 'No updates available'
-      } as DatabaseUpdate);
+    if (!currentVersionParam) {
+        return NextResponse.json({ error: 'Missing current_version parameter' }, { status: 400 });
     }
 
-    const files = fs.readdirSync(updatesDir).filter(f => f.startsWith('update-v') && f.endsWith('.json'));
+    const currentVersion = parseInt(currentVersionParam, 10);
     
-    // Sort files by version number
-    const updates = files.map(file => {
-      try {
-        const filePath = path.join(updatesDir, file);
-        const content = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(content);
-      } catch (e) {
-        console.error(`Failed to parse update file ${file}`, e);
-        return null;
-      }
-    }).filter(u => u !== null)
-      .sort((a, b) => a.latest_version - b.latest_version);
-
-    if (updates.length === 0) {
+    // Validation
+    if (isNaN(currentVersion) || currentVersion < 0) { // Allow 0 or 1 as start
       return NextResponse.json({
-        latest_version: clientVersion,
-        current_version: clientVersion,
-        has_updates: false,
-        changes: [],
-        update_size_bytes: 0, 
-        description: 'No updates found'
-      } as DatabaseUpdate);
+        error: 'Invalid current_version parameter'
+      }, { status: 400 });
+    }
+    
+    // Ensure directory exists
+    if (!fs.existsSync(UPDATES_DIR)) {
+        // If no updates directory, nothing to update.
+         return NextResponse.json({
+            latest_version: currentVersion,
+            current_version: currentVersion,
+            has_updates: false,
+            changes: [],
+            description: 'No updates system found'
+          });
     }
 
-    const latestUpdate = updates[updates.length - 1];
-    const latestVersion = latestUpdate.latest_version;
-
-    if (latestVersion <= clientVersion) {
+    // Find all available update files
+    const updateFiles = fs.readdirSync(UPDATES_DIR)
+      .filter(file => file.startsWith('update-v') && file.endsWith('.json'))
+      .map(file => {
+        const match = file.match(/update-v(\d+)\.json/);
+        return { 
+            file, 
+            version: match ? parseInt(match[1], 10) : 0 
+        };
+      })
+      .sort((a, b) => a.version - b.version);
+    
+    // Find latest version
+    const latestVersion = updateFiles.length > 0 
+      ? updateFiles[updateFiles.length - 1].version 
+      : 1;
+    
+    // Client is up to date
+    if (currentVersion >= latestVersion) {
       return NextResponse.json({
         latest_version: latestVersion,
-        current_version: clientVersion,
+        current_version: currentVersion,
         has_updates: false,
         changes: [],
-        update_size_bytes: 0,
-        description: 'Up to date'
-      } as DatabaseUpdate);
+        description: 'Database is up to date'
+      });
     }
-
-    // Collect all changes from clientVersion + 1 up to latestVersion
-    const relevantUpdates = updates.filter(u => u.latest_version > clientVersion);
     
-    let allChanges: DatabaseChange[] = [];
-    let combinedDescription = '';
-
-    for (const update of relevantUpdates) {
-      if (update.changes) {
-        allChanges = [...allChanges, ...update.changes];
+    // Collect all updates between current and latest
+    const updatesToApply = updateFiles.filter(
+      update => update.version > currentVersion
+    );
+    
+    // Combine all changes from multiple update files
+    const allChanges: any[] = [];
+    let combinedDescription: string[] = [];
+    
+    for (const update of updatesToApply) {
+      const filePath = path.join(UPDATES_DIR, update.file);
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      const updateData = JSON.parse(fileContent);
+      
+      if (updateData.changes && Array.isArray(updateData.changes)) {
+          allChanges.push(...updateData.changes);
       }
-      if (update.description) {
-        combinedDescription += (combinedDescription ? '; ' : '') + update.description;
+      if (updateData.description) {
+          combinedDescription.push(`v${update.version}: ${updateData.description}`);
       }
     }
-
-    const response: DatabaseUpdate = {
+    
+    // Calculate approximate response size
+    const responseData = {
       latest_version: latestVersion,
-      current_version: clientVersion,
+      current_version: currentVersion,
       has_updates: true,
       changes: allChanges,
       update_size_bytes: JSON.stringify(allChanges).length,
-      description: combinedDescription || 'New updates available'
+      description: combinedDescription.join('; ')
     };
-
-    return NextResponse.json(response);
-
+    
+    return NextResponse.json(responseData);
+    
   } catch (error) {
-    console.error('Database update check failed:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
+    console.error('Error serving database updates:', error);
+    return NextResponse.json({
+      error: 'Failed to retrieve database updates'
+    }, { status: 500 });
   }
 }

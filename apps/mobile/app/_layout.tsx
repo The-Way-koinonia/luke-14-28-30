@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
-import { checkForDatabaseUpdates } from '@/utils/bibleDb';
+import { checkForDatabaseUpdates } from '@/services/database/updateChecker';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 

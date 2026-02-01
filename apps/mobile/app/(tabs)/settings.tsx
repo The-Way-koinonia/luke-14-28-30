@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { ThemedText as Text } from '@/components/themed-text';
 import { ThemedView as View } from '@/components/themed-view';
-import { checkForDatabaseUpdates } from '@/utils/bibleDb';
+import { checkForDatabaseUpdates } from '@/services/database/updateChecker';
 
 export default function SettingsScreen() {
   const [checking, setChecking] = useState(false);
