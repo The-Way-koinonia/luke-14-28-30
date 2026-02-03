@@ -4,12 +4,12 @@
   "version": "1.0.0",
   "scripts": {
     "clean": "./scripts/nuclear-clean.sh",
-    "start": "cross-env EXPO_ROUTER_APP_ROOT=app EXPO_ROUTER_IMPORT_MODE=sync expo start",
-    "dev": "cross-env EXPO_ROUTER_APP_ROOT=app EXPO_ROUTER_IMPORT_MODE=sync expo start",
+    "start": "expo start",
+    "dev": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "cross-env EXPO_ROUTER_APP_ROOT=app EXPO_ROUTER_IMPORT_MODE=sync expo start --android",
-    "ios": "cross-env EXPO_ROUTER_APP_ROOT=app EXPO_ROUTER_IMPORT_MODE=sync expo start --ios",
-    "web": "cross-env EXPO_ROUTER_APP_ROOT=app EXPO_ROUTER_IMPORT_MODE=sync expo start --web",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
     "lint": "expo lint",
     "build": "echo 'Mobile build handled by EAS'"
   },
