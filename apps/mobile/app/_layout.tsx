@@ -15,6 +15,15 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
+    // Debug: Log environment variables at runtime
+    console.log('');
+    console.log('📱 ===== APP RUNTIME =====');
+    console.log('📱 EXPO_ROUTER_ABS_APP_ROOT:', process.env.EXPO_ROUTER_ABS_APP_ROOT);
+    console.log('📱 EXPO_ROUTER_APP_ROOT:', process.env.EXPO_ROUTER_APP_ROOT);
+    console.log('📱 EXPO_ROUTER_IMPORT_MODE:', process.env.EXPO_ROUTER_IMPORT_MODE);
+    console.log('=========================');
+    console.log('');
+    
     // Check for database updates in background
     checkForDatabaseUpdates({ silent: true }).catch(err => {
         console.error('Startup update check failed:', err);

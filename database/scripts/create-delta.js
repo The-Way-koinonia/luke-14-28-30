@@ -7,18 +7,19 @@ const UPDATES_DIR = path.join(process.cwd(), 'data/updates');
 
 // Helper Functions
 function parseKeyValue(str) {
-  // Parses "key=value" into { key: 'value' }
-  const parts = str.split('=');
-  if (parts.length < 2) {
+  // Find the FIRST = sign only
+  const equalIndex = str.indexOf('=');
+  
+  if (equalIndex === -1) {
     throw new Error(`Invalid key=value format: ${str}`);
   }
-  const key = parts[0].trim();
-  const value = parts.slice(1).join('=').trim(); // Handle values containing =
   
-  // Try to parse as number if possible, but keep string if it starts with 0 and length > 1 (e.g. 01)
-  // or if it's meant to be a string.
-  // For simplicity, strict number check:
+  const key = str.substring(0, equalIndex).trim();
+  const value = str.substring(equalIndex + 1).trim();
+  
+  // Try to parse as number if possible
   const numValue = Number(value);
+  
   return {
     [key]: (isNaN(numValue) || value === '') ? value : numValue
   };
@@ -26,8 +27,16 @@ function parseKeyValue(str) {
 
 function parseWhere(whereStr) {
   if (!whereStr) return {};
-  return whereStr.split(',').reduce((acc, pair) => {
-    return { ...acc, ...parseKeyValue(pair) };
+
+  // Split on && or ;; (but NOT on comma)
+  const pairs = whereStr.includes('&&') 
+    ? whereStr.split('&&')
+    : whereStr.includes(';;')
+    ? whereStr.split(';;')
+    : [whereStr]; // Single pair, no splitting
+  
+  return pairs.reduce((acc, pair) => {
+    return { ...acc, ...parseKeyValue(pair.trim()) };
   }, {});
 }
 

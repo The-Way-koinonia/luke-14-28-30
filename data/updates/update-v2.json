@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "description": "Test: Fix Strong's G26 definition",
+  "created_at": "2026-02-01T05:44:56.155Z",
+  "created_by": "colinmontes",
+  "changes": [
+    {
+      "table": "strongs_definitions",
+      "operation": "update",
+      "where": {
+        "strongs_number": "G26"
+      },
+      "data": {
+        "definition": "Love affection benevolence (TEST UPDATE)"
+      }
+    }
+  ]
+}

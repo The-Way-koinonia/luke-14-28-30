@@ -4,6 +4,20 @@ const path = require('path');
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 
+// Set EXPO_ROUTER_ABS_APP_ROOT for the Metro bundler process
+const absAppRoot = path.join(projectRoot, 'app');
+process.env.EXPO_ROUTER_ABS_APP_ROOT = absAppRoot;
+
+console.log('');
+console.log('🔧 ===== METRO CONFIG =====');
+console.log('📁 Project Root:', projectRoot);
+console.log('📁 Workspace Root:', workspaceRoot);
+console.log('📁 EXPO_ROUTER_ABS_APP_ROOT:', process.env.EXPO_ROUTER_ABS_APP_ROOT);
+console.log('📁 EXPO_ROUTER_APP_ROOT:', process.env.EXPO_ROUTER_APP_ROOT);
+console.log('📁 EXPO_ROUTER_IMPORT_MODE:', process.env.EXPO_ROUTER_IMPORT_MODE);
+console.log('==========================');
+console.log('');
+
 const config = getDefaultConfig(projectRoot);
 
 config.watchFolders = [workspaceRoot];
