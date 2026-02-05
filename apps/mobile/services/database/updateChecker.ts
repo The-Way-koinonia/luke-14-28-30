@@ -120,6 +120,8 @@ async function getCurrentVersion(db: SQLite.SQLiteDatabase): Promise<number> {
   }
 }
 
+import { api } from '@/services/api';
+
 /**
  * Fetch updates from the API
  */
@@ -127,29 +129,11 @@ async function fetchUpdates(
   currentVersion: number,
   authToken: string
 ): Promise<DatabaseUpdate> {
-  const url = `${API_BASE_URL}/database/updates?current_version=${currentVersion}`;
-  
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
-  }
-
-  const response = await fetch(url, {
-    headers: headers,
-    // Timeout after 10 seconds (using AbortSignal.timeout if supported, else assume fetch handles it or use workaround)
-    // React Native/Expo might typically support AbortSignal
-    signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined, 
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Update check failed: ${response.status}`);
-  }
-  
-  return await response.json();
+  // Use the shared API client instead of raw fetch
+  // Note: authToken is already handled by the singleton listener, but we keep the signature for now
+  return api.database.checkForUpdates(currentVersion);
 }
+
 
 /**
  * Show notification to user about the update

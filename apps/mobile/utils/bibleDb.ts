@@ -8,11 +8,26 @@ import * as SQLite from 'expo-sqlite';
 let db: SQLite.SQLiteDatabase | null = null;
 
 // Export getDb so services can use it
+// Export getDb so services can use it
 export const getDb = async () => {
   if (db) return db;
   // @ts-ignore
   db = await SQLite.openDatabaseAsync('bible.db');
+  
+  // Initialize schema
+  await initDatabase(db);
+  
   return db;
+};
+
+const initDatabase = async (db: SQLite.SQLiteDatabase) => {
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS database_metadata (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TEXT
+    );
+  `);
 };
 
 /**

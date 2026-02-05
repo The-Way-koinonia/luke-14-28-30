@@ -38,6 +38,7 @@ interface Bookmark {
 interface ModalState {
   isOpen: boolean;
   word: string;
+  strongsId?: string;
   bookName: string;
   chapter: number;
   verse: number;
@@ -66,6 +67,7 @@ export default function BibleReader() {
   const [modalState, setModalState] = useState<ModalState>({
     isOpen: false,
     word: '',
+    strongsId: undefined,
     bookName: '',
     chapter: 0,
     verse: 0
@@ -269,13 +271,14 @@ export default function BibleReader() {
   };
 
   // Handle word click
-  const handleWordClick = (word: string, verse: BibleVerse) => {
+  const handleWordClick = (word: string, verse: BibleVerse, strongsId?: string) => {
     // Remove punctuation from word
     const cleanWord = word.replace(/[.,;:!?'"()[\]{}]/g, '');
     
     setModalState({
       isOpen: true,
       word: cleanWord,
+      strongsId,
       bookName: verse.book_name,
       chapter: verse.chapter,
       verse: verse.verse
@@ -284,21 +287,57 @@ export default function BibleReader() {
 
   // Render verse with clickable words
   const renderVerseText = (verse: BibleVerse) => {
-    const words = verse.text.split(' ');
-    
+    // Check if text has XML tags (simple check)
+    if (!verse.text.includes('<w')) {
+        // Fallback for old plain text
+        const words = verse.text.split(' ');
+        return (
+          <p className="bible-text text-text-primary flex-1">
+            {words.map((word, index) => (
+              <span key={index}>
+                <span
+                  onClick={() => handleWordClick(word, verse)}
+                  className="cursor-pointer hover:text-brand-purple hover:underline transition-colors"
+                >
+                  {word}
+                </span>
+                {index < words.length - 1 && ' '}
+              </span>
+            ))}
+          </p>
+        );
+    }
+
+    // Parse XML tags
+    // Split by <w> tags: <w lemma="strong:H123" ...>text</w>
+    const parts = verse.text.split(/(<w\s+[^>]*>[^<]+<\/w>)/g);
+
     return (
-      <p className="bible-text text-text-primary flex-1">
-        {words.map((word, index) => (
-          <span key={index}>
-            <span
-              onClick={() => handleWordClick(word, verse)}
-              className="cursor-pointer hover:text-brand-purple hover:underline transition-colors"
-            >
-              {word}
-            </span>
-            {index < words.length - 1 && ' '}
-          </span>
-        ))}
+      <p className="bible-text text-text-primary flex-1 leading-relaxed">
+        {parts.map((part, index) => {
+          if (!part) return null;
+
+          // Check if key part is a tag
+          // Regex to capture strongs ID and content
+          // lemma can be "strong:H123" or "strong:H123 strong:H456"
+          const match = /<w\s+[^>]*lemma="strong:([GH]\d+)[^"]*"[^>]*>([^<]+)<\/w>/.exec(part);
+          
+          if (match) {
+            const [_, strongsId, word] = match;
+            return (
+              <span
+                key={index}
+                onClick={() => handleWordClick(word, verse, strongsId)}
+                className="cursor-pointer hover:text-brand-purple hover:underline hover:bg-brand-purple/5 transition-colors"
+              >
+                {word}
+              </span>
+            );
+          }
+          
+          // Render plain text (punctuation, spaces, etc.)
+          return <span key={index}>{part}</span>;
+        })}
       </p>
     );
   };
@@ -309,6 +348,7 @@ export default function BibleReader() {
       {modalState.isOpen && (
         <StrongsModal
           word={modalState.word}
+          strongsId={modalState.strongsId}
           bookName={modalState.bookName}
           chapter={modalState.chapter}
           verse={modalState.verse}

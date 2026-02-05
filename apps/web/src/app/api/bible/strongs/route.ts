@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from "/Users/colinmontes/The Way/The Way/apps/web/src/lib/db/index";
 
+// Helper for sorting keys (optional but good for consistency)
+const sortedDefinition = (def: any) => ({
+    strongsId: def.strongs_number,
+    ...def
+});
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -8,12 +14,33 @@ export async function GET(request: NextRequest) {
     const chapter = parseInt(searchParams.get('chapter') || '0');
     const verse = parseInt(searchParams.get('verse') || '0');
     const word = searchParams.get('word');
+    const strongsIdParam = searchParams.get('strongsId');
 
-    if (!book || !chapter || !verse || !word) {
+    if (!strongsIdParam && (!book || !chapter || !verse || !word)) {
       return NextResponse.json(
         { success: false, error: 'Missing required parameters' },
         { status: 400 }
       );
+    }
+
+    if (strongsIdParam) {
+       // Direct lookup by ID
+       const defResult = await pool.query(
+        `SELECT * FROM strongs_definitions WHERE strongs_number = $1`,
+        [strongsIdParam]
+      );
+
+      if (defResult.rows.length === 0) {
+           return NextResponse.json({ 
+              success: false, 
+              error: 'Definition not found in database',
+           }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: sortedDefinition(defResult.rows[0])
+      });
     }
 
     // 1. Fetch verse text from Database
@@ -115,3 +142,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// Force rebuild check

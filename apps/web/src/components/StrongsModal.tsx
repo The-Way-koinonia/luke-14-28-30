@@ -2,6 +2,19 @@
 
 import { useState, useEffect } from 'react';
 
+interface StrongsDefinition {
+  strongsId: string;
+  strongs_number: string;
+  original_word: string;
+  lemma: string; // derived from original_word or legacy
+  xlit: string; // transliteration
+  pron: string; // pronunciation
+  strongs_def: string;
+  derivation?: string;
+  kjv_def?: string;
+  testament?: string;
+}
+
 interface CrossReference {
   to_book: string;
   to_chapter: number;
@@ -13,16 +26,17 @@ interface CrossReference {
 
 interface StrongsModalProps {
   word: string;
+  strongsId?: string;
   bookName: string;
   chapter: number;
   verse: number;
   onClose: () => void;
 }
 
-export default function StrongsModal({ word, bookName, chapter, verse, onClose }: StrongsModalProps) {
+export default function StrongsModal({ word, strongsId, bookName, chapter, verse, onClose }: StrongsModalProps) {
   const [activeTab, setActiveTab] = useState<'strongs' | 'cross-refs'>('strongs');
   const [crossRefs, setCrossRefs] = useState<CrossReference[]>([]);
-  const [strongsData, setStrongsData] = useState<any>(null);
+  const [strongsData, setStrongsData] = useState<StrongsDefinition | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStrongs, setLoadingStrongs] = useState(false);
 
@@ -41,7 +55,13 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
 
     // Fetch Strong's data
     setLoadingStrongs(true);
-    fetch(`/api/bible/strongs?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}&word=${encodeURIComponent(word)}`)
+    let url = `/api/bible/strongs?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}&word=${encodeURIComponent(word)}`;
+    
+    if (strongsId) {
+        url = `/api/bible/strongs?strongsId=${encodeURIComponent(strongsId)}`;
+    }
+
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -50,7 +70,7 @@ export default function StrongsModal({ word, bookName, chapter, verse, onClose }
       })
       .catch(err => console.error('Failed to load Strong\'s data:', err))
       .finally(() => setLoadingStrongs(false));
-  }, [bookName, chapter, verse, word]);
+  }, [bookName, chapter, verse, word, strongsId]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
