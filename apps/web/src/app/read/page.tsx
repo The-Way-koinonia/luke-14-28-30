@@ -287,55 +287,38 @@ export default function BibleReader() {
 
   // Render verse with clickable words
   const renderVerseText = (verse: BibleVerse) => {
-    // Check if text has XML tags (simple check)
-    if (!verse.text.includes('<w')) {
-        // Fallback for old plain text
-        const words = verse.text.split(' ');
-        return (
-          <p className="bible-text text-text-primary flex-1">
-            {words.map((word, index) => (
-              <span key={index}>
-                <span
-                  onClick={() => handleWordClick(word, verse)}
-                  className="cursor-pointer hover:text-brand-purple hover:underline transition-colors"
-                >
-                  {word}
-                </span>
-                {index < words.length - 1 && ' '}
-              </span>
-            ))}
-          </p>
-        );
-    }
-
-    // Parse XML tags
-    // Split by <w> tags: <w lemma="strong:H123" ...>text</w>
-    const parts = verse.text.split(/(<w\s+[^>]*>[^<]+<\/w>)/g);
+    // 1. Robust split: Separates XML tags (<w.../w>) from punctuation/spaces
+    // This regex matches any <w> tag content non-greedily
+    const parts = verse.text.split(/(<w[^>]*>.*?<\/w>)/g);
 
     return (
-      <p className="bible-text text-text-primary flex-1 leading-relaxed">
+      <p className="bible-text inline leading-loose text-lg text-gray-800 dark:text-gray-200">
         {parts.map((part, index) => {
-          if (!part) return null;
+          // If it's a <w> tag, parse it
+          if (part.startsWith('<w')) {
+            // A. Extract the visible text (remove html tags)
+            const content = part.replace(/<[^>]+>/g, '');
+            
+            // B. Extract the Strong's ID (flexible match for G/H + numbers)
+            // Matches: lemma="strong:G123" or lemma="strong:H456"
+            const match = /lemma="strong:([GH]\d+)"/i.exec(part);
+            const strongsId = match ? match[1] : undefined;
 
-          // Check if key part is a tag
-          // Regex to capture strongs ID and content
-          // lemma can be "strong:H123" or "strong:H123 strong:H456"
-          const match = /<w\s+[^>]*lemma="strong:([GH]\d+)[^"]*"[^>]*>([^<]+)<\/w>/.exec(part);
-          
-          if (match) {
-            const [_, strongsId, word] = match;
             return (
               <span
                 key={index}
-                onClick={() => handleWordClick(word, verse, strongsId)}
-                className="cursor-pointer hover:text-brand-purple hover:underline hover:bg-brand-purple/5 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent row click events
+                  handleWordClick(content, verse, strongsId);
+                }}
+                className="cursor-pointer hover:text-brand-purple hover:underline hover:bg-brand-purple/10 rounded px-0.5 transition-colors"
               >
-                {word}
+                {content}
               </span>
             );
           }
-          
-          // Render plain text (punctuation, spaces, etc.)
+
+          // Render punctuation/spaces as-is
           return <span key={index}>{part}</span>;
         })}
       </p>

@@ -21,8 +21,6 @@ export async function GET(request: Request) {
       parseInt(chapter)
     );
 
-    console.log('DEBUG - verses returned:', Array.isArray(verses) ? `Array with ${verses.length} items` : typeof verses);
-
     if (!verses || !Array.isArray(verses) || verses.length === 0) {
       return NextResponse.json(
         { error: 'No verses found for this chapter' },

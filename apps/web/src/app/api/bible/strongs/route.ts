@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from "/Users/colinmontes/The Way/The Way/apps/web/src/lib/db/index";
 
-// Helper for sorting keys (optional but good for consistency)
+// Helper for sorting keys and mapping to frontend expected format
 const sortedDefinition = (def: any) => ({
     strongsId: def.strongs_number,
-    ...def
+    strongs_number: def.strongs_number,
+    original_word: def.original_word,
+    lemma: def.original_word, // Frontend expects lemma
+    xlit: def.transliteration, // Frontend expects xlit
+    pron: def.pronunciation, // Frontend expects pron
+    strongs_def: def.definition, // Frontend expects strongs_def
+    derivation: def.derivation,
+    kjv_def: def.kjv_usage, // Frontend expects kjv_def
+    testament: def.testament
 });
 
 export async function GET(request: NextRequest) {
@@ -24,13 +32,29 @@ export async function GET(request: NextRequest) {
     }
 
     if (strongsIdParam) {
+       // Normalize ID: H0430 -> H430 to match DB
+       const normalizedId = strongsIdParam.replace(/^([GH])0+/, '$1');
+       
        // Direct lookup by ID
        const defResult = await pool.query(
         `SELECT * FROM strongs_definitions WHERE strongs_number = $1`,
-        [strongsIdParam]
+        [normalizedId]
       );
 
       if (defResult.rows.length === 0) {
+           // Try original just in case
+           const retryResult = await pool.query(
+            `SELECT * FROM strongs_definitions WHERE strongs_number = $1`,
+            [strongsIdParam] 
+           );
+           
+           if (retryResult.rows.length > 0) {
+             return NextResponse.json({
+                success: true,
+                data: sortedDefinition(retryResult.rows[0])
+              });
+           }
+
            return NextResponse.json({ 
               success: false, 
               error: 'Definition not found in database',
@@ -67,7 +91,7 @@ export async function GET(request: NextRequest) {
     let strongsId = null;
 
     // Clean input word (remove punctuation)
-    const cleanWord = word.replace(/[.,;!?]/g, '').toLowerCase();
+    const cleanWord = (word || '').replace(/[.,;!?]/g, '').toLowerCase();
 
     while ((match = wTagRegex.exec(verseText)) !== null) {
         const [_, attributes, text] = match;

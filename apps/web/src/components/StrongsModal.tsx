@@ -6,13 +6,18 @@ interface StrongsDefinition {
   strongsId: string;
   strongs_number: string;
   original_word: string;
-  lemma: string; // derived from original_word or legacy
-  xlit: string; // transliteration
-  pron: string; // pronunciation
-  strongs_def: string;
+  lemma?: string; 
+  xlit?: string; 
+  pron?: string; 
+  strongs_def?: string;
   derivation?: string;
   kjv_def?: string;
   testament?: string;
+  // Actual keys returned by DB/API
+  definition?: string;
+  transliteration?: string;
+  pronunciation?: string;
+  kjv_usage?: string;
 }
 
 interface CrossReference {
@@ -32,6 +37,11 @@ interface StrongsModalProps {
   verse: number;
   onClose: () => void;
 }
+
+// Helper to strip tags from verse text
+const cleanText = (text: string) => {
+  return text.replace(/<[^>]+>/g, '');
+};
 
 export default function StrongsModal({ word, strongsId, bookName, chapter, verse, onClose }: StrongsModalProps) {
   const [activeTab, setActiveTab] = useState<'strongs' | 'cross-refs'>('strongs');
@@ -55,16 +65,27 @@ export default function StrongsModal({ word, strongsId, bookName, chapter, verse
 
     // Fetch Strong's data
     setLoadingStrongs(true);
-    let url = `/api/bible/strongs?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}&word=${encodeURIComponent(word)}`;
+    
+    // Default to empty or fallback
+    let url = ''; 
     
     if (strongsId) {
         url = `/api/bible/strongs?strongsId=${encodeURIComponent(strongsId)}`;
+    } else {
+        // Fallback for plain words if needed, or just don't fetch
+        url = `/api/bible/strongs?book=${encodeURIComponent(bookName)}&chapter=${chapter}&verse=${verse}&word=${encodeURIComponent(word)}`;
+    }
+
+    if (!url) {
+        setLoadingStrongs(false);
+        return;
     }
 
     fetch(url)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
+          console.log('Strongs API Data:', data.data);
           setStrongsData(data.data);
         }
       })
@@ -137,15 +158,15 @@ export default function StrongsModal({ word, strongsId, bookName, chapter, verse
                            {strongsData.strongsId}
                          </span>
                          <h2 className="text-3xl font-serif text-gray-900 dark:text-white mb-1">
-                           {strongsData.lemma}
+                           {strongsData.original_word || strongsData.lemma}
                          </h2>
                          <p className="text-lg text-gray-600 dark:text-gray-300 font-medium font-serif">
-                           {strongsData.xlit}
+                           {strongsData.transliteration || strongsData.xlit}
                          </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500 dark:text-gray-400">Pronunciation</p>
-                        <p className="font-mono text-gray-700 dark:text-gray-200">{strongsData.pron}</p>
+                        <p className="font-mono text-gray-700 dark:text-gray-200">{strongsData.pronunciation || strongsData.pron}</p>
                       </div>
                     </div>
                   </div>
@@ -160,7 +181,15 @@ export default function StrongsModal({ word, strongsId, bookName, chapter, verse
                         Definition
                       </h4>
                       <div className="text-gray-700 dark:text-gray-300 leading-relaxed bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">
-                        {strongsData.strongs_def}
+                        
+                        {
+                            // Display definition if available, otherwise show missing message helper
+                            (strongsData.definition || strongsData.strongs_def) || (
+                                <span className="text-red-500 text-xs">
+                                    Description missing.
+                                </span>
+                            )
+                        }
                       </div>
                     </div>
 
@@ -180,7 +209,7 @@ export default function StrongsModal({ word, strongsId, bookName, chapter, verse
                         KJV Usage
                       </h4>
                       <p className="text-gray-700 dark:text-gray-300 text-sm border-l-4 border-brand-purple/30 pl-3">
-                        {strongsData.kjv_def}
+                        {strongsData.kjv_usage || strongsData.kjv_def}
                       </p>
                     </div>
                   </div>
@@ -224,7 +253,7 @@ export default function StrongsModal({ word, strongsId, bookName, chapter, verse
                         </span>
                       </div>
                       <p className="text-gray-700 dark:text-gray-300 text-sm">
-                        {ref.verse_text || 'Loading verse text...'}
+                        {ref.verse_text ? cleanText(ref.verse_text) : 'Loading verse text...'}
                       </p>
                     </div>
                   ))}
