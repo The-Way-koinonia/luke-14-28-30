@@ -318,8 +318,8 @@ export default function BibleReader() {
             );
           }
 
-          // Render punctuation/spaces as-is
-          return <span key={index}>{part}</span>;
+          // Render punctuation/spaces/other text, stripping remaining XML tags
+          return <span key={index}>{part.replace(/<[^>]+>/g, '')}</span>;
         })}
       </p>
     );

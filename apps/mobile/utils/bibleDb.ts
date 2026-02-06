@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { BibleBook, BibleVerse } from '@/types/database';
 
 // Open the database (assuming it's in assets and moved to DocumentDir by expo-sqlite or manually)
 // Using synchronous open for simplicity with expo-sqlite legacy/compat or async with new API.
@@ -8,16 +9,80 @@ import * as SQLite from 'expo-sqlite';
 let db: SQLite.SQLiteDatabase | null = null;
 
 // Export getDb so services can use it
-// Export getDb so services can use it
+import * as FileSystem from 'expo-file-system/legacy';
+import { Asset } from 'expo-asset';
+
 export const getDb = async () => {
   if (db) return db;
-  // @ts-ignore
-  db = await SQLite.openDatabaseAsync('bible.db');
+
+  // Ensure the database file exists in the Document directory
+  const dbName = 'bible.db';
+  const dbDir = FileSystem.documentDirectory + 'SQLite/';
+  const dbPath = dbDir + dbName;
+
+  const fileInfo = await FileSystem.getInfoAsync(dbPath);
   
-  // Initialize schema
+  // If file doesn't exist OR is too small (incomplete/corrupt/empty db from previous runs)
+  // The full bible.db is ~40MB. An empty sqlite file is < 100KB.
+  if (!fileInfo.exists || (fileInfo.size && fileInfo.size < 5 * 1024 * 1024)) {
+    console.log('📦 Database missing or invalid, ensuring clean copy...');
+    
+    // Close existing connection if any (though db var is null here)
+    if (fileInfo.exists) {
+        await FileSystem.deleteAsync(dbPath, { idempotent: true });
+    }
+
+    await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true });
+    
+    // Load asset - Assuming the asset is bundled properly. 
+    // For Expo Router / standard expo structure:
+    const asset = Asset.fromModule(require('../assets/bible.db'));
+    await asset.downloadAsync();
+    
+    await FileSystem.copyAsync({
+      from: asset.localUri || asset.uri,
+      to: dbPath
+    });
+    console.log('✅ Database copied to:', dbPath);
+  }
+
+  // @ts-ignore
+  db = await SQLite.openDatabaseAsync(dbName);
+  
+  // Initialize schema (create metadata if missing, but table structure should be in asset)
   await initDatabase(db);
   
   return db;
+};
+
+export const getBooks = async (): Promise<BibleBook[]> => {
+  const db = await getDb();
+  // Using 'id' as it maps to the canonical book order (1=Genesis, etc.)
+  return await db.getAllAsync<BibleBook>('SELECT * FROM bible_books ORDER BY id ASC');
+};
+
+export const getChapterVerses = async (bookId: number, chapter: number): Promise<BibleVerse[]> => {
+  const db = await getDb();
+  return await db.getAllAsync<BibleVerse>(
+    `SELECT * FROM bible_verses 
+     WHERE book_id = ? AND chapter = ? 
+     ORDER BY verse ASC`,
+    [bookId, chapter]
+  );
+};
+
+export const getStrongsDefinition = async (strongsId: string): Promise<import('@/types/database').StrongsDefinition | null> => {
+    try {
+        const db = await getDb();
+        const result = await db.getAllAsync<import('@/types/database').StrongsDefinition>(
+            'SELECT * FROM strongs_definitions WHERE strongs_number = ?',
+            [strongsId]
+        );
+        return result.length > 0 ? result[0] : null;
+    } catch (e) {
+        console.error("❌ getStrongsDefinition failed:", e);
+        return null;
+    }
 };
 
 const initDatabase = async (db: SQLite.SQLiteDatabase) => {
