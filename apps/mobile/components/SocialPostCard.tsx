@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
 import { Post } from '../types/social';
 import { getVerseText } from '../utils/bibleDb';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,13 @@ interface SocialPostCardProps {
 export const SocialPostCard: React.FC<SocialPostCardProps> = ({ post }) => {
   const [verseText, setVerseText] = useState<string | null>(null);
   const [loadingVerse, setLoadingVerse] = useState(true);
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(Math.floor(Math.random() * 20)); // Mock initial count
+
+  const toggleLike = () => {
+    setLiked(!liked);
+    setLikesCount(prev => liked ? prev - 1 : prev + 1);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -78,9 +85,19 @@ export const SocialPostCard: React.FC<SocialPostCardProps> = ({ post }) => {
 
       {/* Footer Actions */}
       <View style={styles.footer}>
-         <Ionicons name="heart-outline" size={24} color="#333" />
-         <Ionicons name="chatbubble-outline" size={24} color="#333" />
-         <Ionicons name="share-outline" size={24} color="#333" />
+         <TouchableOpacity onPress={toggleLike} style={styles.actionBtn}>
+           <Ionicons name={liked ? "heart" : "heart-outline"} size={24} color={liked ? "#e91e63" : "#333"} />
+           <Text style={styles.actionText}>{likesCount > 0 ? likesCount : ''}</Text>
+         </TouchableOpacity>
+         
+         <TouchableOpacity style={styles.actionBtn}>
+           <Ionicons name="chatbubble-outline" size={24} color="#333" />
+           <Text style={styles.actionText}>Comment</Text>
+         </TouchableOpacity>
+
+         <TouchableOpacity style={styles.actionBtn}>
+           <Ionicons name="share-outline" size={24} color="#333" />
+         </TouchableOpacity>
       </View>
     </View>
   );
@@ -184,5 +201,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee',
     paddingTop: 12,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionText: {
+    color: '#555',
+    fontSize: 14,
   },
 });
