@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, ActivityIndicator, Text } from 'react-native';
+import { View, StyleSheet, FlatList, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
@@ -9,7 +9,8 @@ import { SocialPostCard } from '@/components/SocialPostCard';
 import ComposePostModal from '@/components/ComposePostModal';
 import { Post } from '@/types/social';
 import { Ionicons } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const { session } = useAuth();
@@ -17,7 +18,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [isComposeVisible, setComposeVisible] = useState(false);
 
-  // Mock stats for now
+  // ... (keep stats and fetchUserPosts)
+
   const stats = {
     posts: posts.length,
     followers: 120,
@@ -53,45 +55,57 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <SocialPostCard post={item} />}
-        ListHeaderComponent={
-            <ProfileHeader
-                displayName={session.user.email?.split('@')[0] || 'User'}
-                username={`@${session.user.email?.split('@')[0] || 'user'}`}
-                stats={stats}
-                onEditProfile={() => console.log('Edit profile')}
-            />
-        }
-        contentContainerStyle={styles.listContent}
-        refreshing={loading}
-        onRefresh={fetchUserPosts}
-        ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>You haven't posted yet.</Text>
-            </View>
-        }
+      {/* Gradient Header Background for the top part */}
+      <LinearGradient
+        colors={[Colors.light.brand.gold.DEFAULT, Colors.light.brand.purple.DEFAULT]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBackground}
       />
 
-      {/* FAB for composing */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => setComposeVisible(true)}
-      >
-        <Ionicons name="add" size={30} color="#fff" />
-      </TouchableOpacity>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <FlatList
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <SocialPostCard post={item} />}
+            ListHeaderComponent={
+                <View style={styles.headerContainer}>
+                    <ProfileHeader
+                        displayName={session.user.email?.split('@')[0] || 'User'}
+                        username={`@${session.user.email?.split('@')[0] || 'user'}`}
+                        stats={stats}
+                        onEditProfile={() => console.log('Edit profile')}
+                    />
+                </View>
+            }
+            contentContainerStyle={styles.listContent}
+            refreshing={loading}
+            onRefresh={fetchUserPosts}
+            ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>You haven't posted yet.</Text>
+                </View>
+            }
+          />
 
-      <ComposePostModal
-        visible={isComposeVisible}
-        onClose={() => setComposeVisible(false)}
-        onPostSuccess={fetchUserPosts}
-      />
-    </SafeAreaView>
+          {/* FAB for composing */}
+          <TouchableOpacity 
+            style={styles.fab}
+            onPress={() => setComposeVisible(true)}
+          >
+            <Ionicons name="add" size={30} color="#fff" />
+          </TouchableOpacity>
+
+          <ComposePostModal
+            visible={isComposeVisible}
+            onClose={() => setComposeVisible(false)}
+            onPostSuccess={fetchUserPosts}
+          />
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -99,6 +113,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 150, // Height of the gradient background
+  },
+  safeArea: {
+    flex: 1,
+  },
+  headerContainer: {
+    backgroundColor: 'transparent',
+    paddingBottom: 20,
   },
   center: {
     flex: 1,
@@ -123,7 +151,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#007AFF', // brand-blue
+    backgroundColor: Colors.light.brand.purple.DEFAULT, // Use brand purple
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

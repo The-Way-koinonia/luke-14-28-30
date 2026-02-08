@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function HomeScreen() {
+export default function MemorizeScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -13,10 +13,9 @@ export default function HomeScreen() {
         style={styles.headerBackground}
       />
       <SafeAreaView style={styles.safeArea}>
-        <Text style={styles.title}>Home</Text>
+        <Text style={styles.title}>Memorize</Text>
         <View style={styles.content}>
-            <Text style={styles.subtitle}>Welcome back!</Text>
-            <Text>Your daily dashboard will go here.</Text>
+            <Text>Scripture memorization tools coming soon.</Text>
         </View>
       </SafeAreaView>
     </View>
@@ -29,5 +28,4 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   title: { fontSize: 24, fontWeight: 'bold', color: 'white', padding: 16 },
   content: { padding: 16 },
-  subtitle: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
 });

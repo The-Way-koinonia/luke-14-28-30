@@ -1,102 +1,119 @@
-import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Text } from 'react-native';
-import { useSocialFeed } from '../../hooks/useSocialFeed';
-import { SocialPostCard } from '../../components/SocialPostCard';
-import { CreatePostModal } from '../../components/CreatePostModal';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, FlatList, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '@/constants/theme';
+import { SocialPostCard } from '@/components/SocialPostCard';
+import { supabase } from '@/lib/supabase';
+import { Post } from '@/types/social';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function FeedScreen() {
-  const { posts, loading, refresh } = useSocialFeed();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isModalVisible, setModalVisible] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refresh();
-    setIsRefreshing(false);
+  const fetchPosts = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (data) {
+      setPosts(data as Post[]);
+    }
+    setLoading(false);
   };
 
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ 
-          title: 'Community Feed',
-          headerRight: () => (
-              <TouchableOpacity onPress={() => setModalVisible(true)} style={{ marginRight: 16 }}>
-                  <Ionicons name="add-circle-outline" size={28} color="#007AFF" />
-              </TouchableOpacity>
-          )
-      }} />
+    <View style={styles.container}>
+      {/* Hide Default Header */}
+      <Stack.Screen options={{ headerShown: false }} />
 
-      {loading && posts.length === 0 ? (
-          <View style={styles.center}>
-              <ActivityIndicator size="large" />
-          </View>
-      ) : (
-          <FlatList
-            data={posts}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <SocialPostCard post={item} />}
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            ListEmptyComponent={
-                <View style={styles.center}>
-                    <Text style={styles.emptyText}>No posts yet. Be the first to share! 🌿</Text>
-                </View>
-            }
-            contentContainerStyle={styles.listContent}
-          />
-      )}
-
-      {/* Floating Action Button (Alternative to Header Button) */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => setModalVisible(true)}
-      >
-        <Ionicons name="add" size={30} color="#fff" />
-      </TouchableOpacity>
-
-      <CreatePostModal 
-        visible={isModalVisible} 
-        onClose={() => setModalVisible(false)} 
+      {/* Gradient Header Background */}
+      <LinearGradient
+        colors={[Colors.light.brand.gold.DEFAULT, Colors.light.brand.purple.DEFAULT]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBackground}
       />
-    </SafeAreaView>
+
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header Content */}
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>The Way</Text>
+          <TouchableOpacity onPress={fetchPosts}>
+             <Ionicons name="refresh" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Feed List */}
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <SocialPostCard post={item} />}
+          contentContainerStyle={styles.listContent}
+          refreshing={loading}
+          onRefresh={fetchPosts}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+                {loading ? (
+                    <ActivityIndicator color={Colors.light.brand.purple.DEFAULT} />
+                ) : (
+                    <Text style={styles.emptyText}>No posts yet. Be the first!</Text>
+                )}
+            </View>
+          }
+        />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
+  },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120, // Covers the top area
+  },
+  safeArea: {
+    flex: 1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    fontFamily: 'serif', // Or your custom font
   },
   listContent: {
-    paddingBottom: 80, // Space for FAB
+    paddingTop: 10,
+    paddingBottom: 80,
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
+  emptyContainer: {
+    padding: 40,
     alignItems: 'center',
-    padding: 20,
   },
   emptyText: {
-    fontSize: 16,
     color: '#888',
-    textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    fontSize: 16,
+    marginTop: 10,
   },
 });

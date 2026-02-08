@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { getBooks, getChapterVerses } from '@/utils/bibleDb';
 import { BibleBook, BibleVerse } from '@/types/database';
 import MobileStrongsModal from '@/components/MobileStrongsModal';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '@/constants/theme';
 
 interface Highlight {
   verseId: number;
@@ -109,11 +111,17 @@ export default function MobileBibleReader() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={[Colors.light.brand.gold.DEFAULT, Colors.light.brand.purple.DEFAULT, Colors.light.brand.purple.dark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity onPress={() => {/* Logic to change book */}}>
              <Text style={styles.headerTitle}>
                {books.find(b => b.id === selectedBook)?.name || 'Loading...'} {selectedChapter}
              </Text>
+             <Text style={styles.headerSubtitle}>King James Version</Text>
         </TouchableOpacity>
         
         <View style={styles.headerControls}>
@@ -124,7 +132,7 @@ export default function MobileBibleReader() {
              <Ionicons name="chevron-forward" size={24} color="white" />
            </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Content */}
       {loading ? (
@@ -162,10 +170,20 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 50 : 60,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#5b21b6', // brand-purple (approx)
+    // Background handled by LinearGradient
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  headerSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    marginTop: 2,
   },
   headerTitle: {
     color: 'white',
