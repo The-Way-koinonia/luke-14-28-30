@@ -15,6 +15,9 @@ export default function Home() {
           <Link href="/read" className="px-8 py-3 bg-brand-gold text-brand-purple-darker font-bold rounded-full hover:bg-white hover:scale-105 transition-all shadow-lg w-full sm:w-auto">
             Start Reading
           </Link>
+          <Link href="/feed" className="px-8 py-3 bg-white text-brand-purple font-bold rounded-full hover:bg-brand-purple-light hover:text-white hover:scale-105 transition-all shadow-lg w-full sm:w-auto">
+            Community Feed
+          </Link>
           <Link href="/auth/signin" className="px-8 py-3 border-2 border-white/30 text-white font-semibold rounded-full hover:bg-white/10 transition-all w-full sm:w-auto">
             Sign In
           </Link>

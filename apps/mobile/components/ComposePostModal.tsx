@@ -1,110 +1,26 @@
-import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, Modal, TouchableOpacity, Text, ActivityIndicator, Alert, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/context/AuthContext';
+import { router } from 'expo-router';
 
-interface ComposePostModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onPostSuccess?: () => void;
-}
+// ... inside component ...
 
-export default function ComposePostModal({ visible, onClose, onPostSuccess }: ComposePostModalProps) {
-  const { session } = useAuth();
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  // Verse attachment state (placeholder for now)
-  const [verseAttached, setVerseAttached] = useState<string | null>(null);
-
-  const handlePost = async () => {
-    if (!session?.user) {
-        Alert.alert('Error', 'You must be logged in to post.');
-        return;
-    }
-
-    if (!content.trim()) return;
-
-    setLoading(true);
-    try {
-        const { error } = await supabase
-            .from('posts')
-            .insert({
-                content: content.trim(),
-                user_id: session.user.id,
-                // verse_ref: verseAttached // Future integration
-            });
-
-        if (error) throw error;
-
-        setContent('');
-        setVerseAttached(null);
-        onPostSuccess?.();
-        onClose();
-    } catch (error: any) {
-        Alert.alert('Error Posting', error.message);
-    } finally {
-        setLoading(false);
-    }
+  const handleCreateVideo = () => {
+      onClose();
+      router.push('/studio/create');
   };
 
-  const handleAttachVerse = () => {
-      console.log('Attach verse clicked');
-      // Placeholder interaction - could open a verse picker modal in the future
-      Alert.alert('Coming Soon', 'Verse attachment picker will go here.');
-  };
+// ... inside render ...
 
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onClose}>
-                    <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                    onPress={handlePost} 
-                    disabled={loading || !content.trim()}
-                    style={[styles.postButton, (!content.trim() || loading) && styles.postButtonDisabled]}
-                >
-                    {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.postButtonText}>Post</Text>}
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.contentContainer}>
-                {/* User Avatar Placeholder */}
-                <View style={styles.avatar}>
-                     <Ionicons name="person" size={20} color="#fff" />
-                </View>
-
-                <View style={styles.inputWrapper}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="What's on your heart?"
-                        multiline
-                        autoFocus
-                        value={content}
-                        onChangeText={setContent}
-                        textAlignVertical="top"
-                    />
-                    
                     {/* Attachments Area */}
                     <View style={styles.attachments}>
                         <TouchableOpacity style={styles.attachButton} onPress={handleAttachVerse}>
                             <Ionicons name="book-outline" size={20} color="#4A90E2" />
-                            <Text style={styles.attachText}>Attach Verse</Text>
+                            <Text style={styles.attachText}>Verse</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity style={[styles.attachButton, { borderColor: '#7C3AED' }]} onPress={handleCreateVideo}>
+                            <Ionicons name="videocam-outline" size={20} color="#7C3AED" />
+                            <Text style={[styles.attachText, { color: '#7C3AED' }]}>Video</Text>
                         </TouchableOpacity>
                     </View>
-                </View>
-            </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
 
 const styles = StyleSheet.create({
   container: {

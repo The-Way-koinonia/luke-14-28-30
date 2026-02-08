@@ -19,7 +19,10 @@ console.log('📁 Workspace Root:', workspaceRoot);
 console.log('==========================');
 console.log('');
 
-config.watchFolders = [workspaceRoot];
+config.watchFolders = [
+  workspaceRoot,
+  path.resolve(workspaceRoot, 'packages')
+];
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),

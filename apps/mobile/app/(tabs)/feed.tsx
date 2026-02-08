@@ -1,34 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, StyleSheet, FlatList, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/theme';
 import { SocialPostCard } from '@/components/SocialPostCard';
-import { supabase } from '@/lib/supabase';
-import { Post } from '@/types/social';
 import { Ionicons } from '@expo/vector-icons';
+import { useSocialFeed } from '@the-way/social-engine';
+import { MobileSocialAdapter } from '@/utils/mobileSocialAdapter';
 
 export default function FeedScreen() {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchPosts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      setPosts(data as Post[]);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  const { posts, loading, refresh, loadMore } = useSocialFeed(MobileSocialAdapter);
 
   return (
     <View style={styles.container}>
@@ -47,7 +29,7 @@ export default function FeedScreen() {
         {/* Header Content */}
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>The Way</Text>
-          <TouchableOpacity onPress={fetchPosts}>
+          <TouchableOpacity onPress={refresh}>
              <Ionicons name="refresh" size={24} color="white" />
           </TouchableOpacity>
         </View>
@@ -59,7 +41,9 @@ export default function FeedScreen() {
           renderItem={({ item }) => <SocialPostCard post={item} />}
           contentContainerStyle={styles.listContent}
           refreshing={loading}
-          onRefresh={fetchPosts}
+          onRefresh={refresh}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
                 {loading ? (
