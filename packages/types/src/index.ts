@@ -104,7 +104,11 @@ export interface Post {
   user_id: string;
   content: string;
   verse_reference?: VerseReference;
-  media_urls?: string[];
+  media_type?: 'text' | 'image' | 'video' | 'audio';
+  media_urls?: string[]; // Keep legacy array
+  media_url?: string;    // Add single URL for new api
+  quoted_post?: Post;
+  quoted_post_id?: string;
   likes_count: number;
   comments_count: number;
   shares_count: number;

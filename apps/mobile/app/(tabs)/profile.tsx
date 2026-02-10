@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import ProfileHeader from '@/components/ProfileHeader';
@@ -14,6 +14,7 @@ import { Colors } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const { session } = useAuth();
+  const router = useRouter();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isComposeVisible, setComposeVisible] = useState(false);
@@ -77,7 +78,7 @@ export default function ProfileScreen() {
                         displayName={session.user.email?.split('@')[0] || 'User'}
                         username={`@${session.user.email?.split('@')[0] || 'user'}`}
                         stats={stats}
-                        onEditProfile={() => console.log('Edit profile')}
+                        onEditProfile={() => router.push('/profile/edit')}
                     />
                 </View>
             }

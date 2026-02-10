@@ -15,11 +15,9 @@ export interface Post {
         username: string;
         avatar_url: string;
     };
-    // Add other fields as needed, syncing with @the-way/types if available
 }
-
 export interface SocialAdapter {
-  fetchFeed: (limit: number, cursor?: string) => Promise<Post[]>;
-  likePost: (postId: string) => Promise<void>;
-  createPost: (content: string) => Promise<Post>;
+    fetchFeed: (limit: number, cursor?: string) => Promise<Post[]>;
+    likePost: (postId: string) => Promise<void>;
+    createPost: (content: string) => Promise<Post>;
 }
