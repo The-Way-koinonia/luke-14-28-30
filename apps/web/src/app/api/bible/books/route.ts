@@ -1,23 +1,9 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { WebBibleAdapter } from '@/lib/adapters/webBibleAdapter';
 
 export async function GET() {
   try {
-    // Get all books with chapter counts
-    const books = await db.query(`
-      SELECT 
-        b.id,
-        b.name,
-        MAX(v.chapter) as chapters,
-        CASE 
-          WHEN b.id <= 39 THEN 'OT'
-          ELSE 'NT'
-        END as testament
-      FROM "KJV_books" b
-      LEFT JOIN "KJV_verses" v ON b.id = v.book_id
-      GROUP BY b.id, b.name
-      ORDER BY b.id
-    `);
+    const books = await WebBibleAdapter.getBooks();
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { bibleRepository } from '@/lib/db/repositories/bible.repository';
+import { WebBibleAdapter } from '@/lib/adapters/webBibleAdapter';
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     }
 
     // Get verses for the chapter
-    const verses = await bibleRepository.getVersesByChapter(
+    const verses = await WebBibleAdapter.getChapterVerses(
       parseInt(bookId),
       parseInt(chapter)
     );

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StrongsDefinition } from '../types/database';
-import { getStrongsDefinition } from '../utils/bibleDb';
+import { StrongsDefinition } from '@the-way/bible-engine';
+import { MobileBibleAdapter } from '../utils/mobileBibleAdapter';
 
 interface MobileStrongsModalProps {
   strongsId: string | null;
@@ -27,7 +27,7 @@ export default function MobileStrongsModal({ strongsId, word, visible, onClose }
     if (!strongsId) return;
     setLoading(true);
     try {
-      const data = await getStrongsDefinition(strongsId);
+      const data = await MobileBibleAdapter.getStrongsDefinition(strongsId);
       setDefinition(data);
     } catch (e) {
       console.error("Failed to load definition", e);

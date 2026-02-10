@@ -20,7 +20,9 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@the-way/types": ["../../packages/types/src"]
+      "@the-way/types": ["../../packages/types/src"],
+      "@the-way/social-engine": ["../../packages/social-engine/src"],
+      "@the-way/bible-engine": ["../../packages/bible-engine/src"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
