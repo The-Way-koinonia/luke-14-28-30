@@ -47,15 +47,19 @@ This document maps the current state of "The Way" monorepo. It identifies "Hotsp
 │       │   │   │   │   ├── books/route.ts (Calls BibleService)
 │       │   │   │   │   └── verses/route.ts (Calls BibleService)
 │       │   │   │   ├── social/
-│       │   │   │   │   ├── feed/route.ts 🚨 -> Move logic to apps/web/services/SocialService.ts
-│       │   │   │   │   └── posts/route.ts 🚨 -> Move logic to apps/web/services/SocialService.ts
+│       │   │   │   │   ├── feed/route.ts (Calls SocialService ✅)
+│       │   │   │   │   └── posts/route.ts (Calls SocialService ✅)
 │       │   │   │   └── health/route.ts
 │       │   ├── lib/
 │       │   │   ├── adapters/
 │       │   │   │   └── webBibleAdapter.ts 🚨 -> Move to repositories/BibleRepository.ts
 │       │   │   ├── db/
 │       │   │   │   └── repositories/
-│       │   │   │       └── auth.repository.ts
+│       │   │   │       ├── auth.repository.ts
+│       │   │   │       └── social.repository.ts
+│       │   │   ├── services/
+│       │   │   │   ├── social.service.ts
+│       │   │   │   └── bible.service.ts
 │       │   │   ├── auth.ts (Uses AuthRepository ✅)
 │       │   │   ├── supabase.ts
 │       │   │   └── swagger.ts

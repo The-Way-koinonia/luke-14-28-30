@@ -1,6 +1,6 @@
 
-import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
+import { SocialService } from '@/lib/services/social.service';
 
 /**
  * @swagger
@@ -38,45 +38,20 @@ export async function POST(request: NextRequest) {
   try {
     const { content, media_type } = await request.json();
 
-    if (!content || typeof content !== 'string') {
-        return NextResponse.json({ error: 'Content is required' }, { status: 400 });
-    }
-
     // Get Auth Token
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
 
-    if (!token) {
-        return NextResponse.json({ error: 'Missing Authorization Header' }, { status: 401 });
-    }
+    const post = await SocialService.createPost(token || null, content, media_type);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data, error } = await supabase
-        .from('posts')
-        .insert({
-            content,
-            user_id: user.id,
-            media_type: media_type || 'text' // Optional media_type
-        })
-        .select(`
-            *,
-            user:user_id (
-                id,
-                username,
-                avatar_url
-            )
-        `)
-        .single();
-    
-    if (error) throw error;
-
-    return NextResponse.json(data);
+    return NextResponse.json(post);
   } catch (error: any) {
+    if (error.message.includes('Unauthorized')) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    if (error.message.includes('Validation')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
