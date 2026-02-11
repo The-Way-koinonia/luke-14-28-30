@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { WebBibleAdapter } from '@/lib/adapters/webBibleAdapter';
+import { BibleService } from '@/lib/services/bible.service';
 
 /**
  * @swagger
@@ -67,35 +67,28 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get verses for the chapter
-    const verses = await WebBibleAdapter.getChapterVerses(
+    const verses = await BibleService.getVerses(
       parseInt(bookId),
-      parseInt(chapter)
+      parseInt(chapter),
+      verseNum ? parseInt(verseNum) : undefined
     );
-
-    if (!verses || !Array.isArray(verses) || verses.length === 0) {
-      return NextResponse.json(
-        { error: 'No verses found for this chapter' },
-        { status: 404 }
-      );
-    }
-
-    // If specific verse requested, filter to that verse
-    if (verseNum) {
-      const singleVerse = verses.find(v => v.verse === parseInt(verseNum));
-      return NextResponse.json({
-        success: true,
-        verses: singleVerse ? [singleVerse] : []
-      });
-    }
 
     return NextResponse.json({
       success: true,
       verses
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Bible verses API error:', error);
+    
+    // Handle "Not Found" error specifically if defined, otherwise generic 500
+    if (error.message === 'No verses found for this chapter') {
+         return NextResponse.json(
+        { error: error.message },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch verses' },
       { status: 500 }

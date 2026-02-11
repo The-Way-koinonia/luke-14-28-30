@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { WebBibleAdapter } from '@/lib/adapters/webBibleAdapter';
+import { BibleService } from '@/lib/services/bible.service';
 
 /**
  * @swagger
@@ -37,7 +37,7 @@ import { WebBibleAdapter } from '@/lib/adapters/webBibleAdapter';
  */
 export async function GET() {
   try {
-    const books = await WebBibleAdapter.getBooks();
+    const books = await BibleService.getBooks();
 
     return NextResponse.json({
       success: true,

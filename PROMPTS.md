@@ -67,6 +67,8 @@ Zod Schemas: All Zod schemas must have .describe() attached to key fields to aut
 
 Review: Self-correct by identifying trade-offs and verifying RLS/Type safety.
 
+Update ARCHITECTURE.md with any changes and remove any files that are no longer in use.
+
 Reference Standards:
 
 Supabase Dashboard: (https://github.com/supabase/supabase) - For RLS policies and TypeScript patterns.
