@@ -66,7 +66,8 @@ let slug = "update";
 if (filenameMatch && filenameMatch[1]) {
   slug = filenameMatch[1].trim()
     .replace(/^\W+|\W+$/g, '') // Remove leading/trailing non-word chars
-    .replace(/^[-_]+|[-_]+$/g, ''); // Clean up hyphens
+    .replace(/^[-_]+|[-_]+$/g, '') // Clean up hyphens
+    .replace(/\.md$/, ''); // Remove .md extension if present since we add it below
 }
 
 const filename = `${dateStr}-${slug}.md`;

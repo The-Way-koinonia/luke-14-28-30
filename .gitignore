@@ -35,6 +35,9 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# ADRs
+docs/adr/
+
 # Testing
 coverage/
 .nyc_output
