@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
 import { Post } from '../types/social';
-import { getVerseText } from '../utils/bibleDb';
+import { BibleService } from '@/services/BibleService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface SocialPostCardProps {
@@ -25,7 +25,7 @@ export const SocialPostCard: React.FC<SocialPostCardProps> = ({ post }) => {
     const fetchVerse = async () => {
       if (post.verse_ref) {
         setLoadingVerse(true);
-        const text = await getVerseText(post.verse_ref);
+        const text = await BibleService.getVerseText(post.verse_ref);
         if (isMounted) {
           setVerseText(text);
           setLoadingVerse(false);

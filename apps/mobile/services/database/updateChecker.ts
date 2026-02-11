@@ -1,6 +1,7 @@
 import { DatabaseUpdate, UpdateCheckOptions } from '../../types/database';
 import { applyDatabaseChange } from './updateApplier';
-import { getDb as getDatabase } from '../../utils/bibleDb';
+import { BibleRepository } from '../../repositories/BibleRepository';
+import { MetadataRepository } from '../../repositories/MetadataRepository';
 import { API_BASE_URL } from '@/constants/config';
 import * as SQLite from 'expo-sqlite';
 
@@ -13,7 +14,7 @@ export async function checkForDatabaseUpdates(
   options: UpdateCheckOptions = {}
 ): Promise<void> {
   try {
-    const db = await getDatabase();
+    const db = await BibleRepository.getInstance().getConnection();
     
     // Don't check too frequently unless forced
     if (!options.force) {
@@ -75,14 +76,11 @@ export async function checkForDatabaseUpdates(
  */
 async function shouldSkipUpdateCheck(db: SQLite.SQLiteDatabase): Promise<boolean> {
   try {
-    const result = await db.getAllAsync<{ value: string }>(
-      'SELECT value FROM database_metadata WHERE key = ?',
-      ['last_update_check']
-    );
+    const lastCheckValue = await MetadataRepository.getValue('last_update_check');
     
-    if (!result || result.length === 0) return false;
+    if (!lastCheckValue) return false;
     
-    const lastCheck = new Date(result[0].value);
+    const lastCheck = new Date(lastCheckValue);
     const hoursSince = (Date.now() - lastCheck.getTime()) / (1000 * 60 * 60);
     
     return hoursSince < COOLDOWN_HOURS;
@@ -96,11 +94,7 @@ async function shouldSkipUpdateCheck(db: SQLite.SQLiteDatabase): Promise<boolean
  * Update the last check timestamp
  */
 async function updateLastCheckTime(db: SQLite.SQLiteDatabase): Promise<void> {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO database_metadata (key, value, updated_at) 
-     VALUES (?, ?, ?)`,
-    ['last_update_check', new Date().toISOString(), new Date().toISOString()]
-  );
+  await MetadataRepository.setValue('last_update_check', new Date().toISOString());
 }
 
 /**
@@ -108,12 +102,8 @@ async function updateLastCheckTime(db: SQLite.SQLiteDatabase): Promise<void> {
  */
 async function getCurrentVersion(db: SQLite.SQLiteDatabase): Promise<number> {
   try {
-    const result = await db.getAllAsync<{ value: string }>(
-      'SELECT value FROM database_metadata WHERE key = ?',
-      ['data_version']
-    );
-    
-    return result && result.length > 0 ? parseInt(result[0].value, 10) : 1;
+    const value = await MetadataRepository.getValue('data_version');
+    return value ? parseInt(value, 10) : 1;
   } catch (error) {
     console.error('[DB Updates] Error getting current version:', error);
     return 1;

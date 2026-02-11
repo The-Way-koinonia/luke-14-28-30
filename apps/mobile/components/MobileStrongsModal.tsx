@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StrongsDefinition } from '@the-way/bible-engine';
-import { MobileBibleAdapter } from '../utils/mobileBibleAdapter';
+import { BibleService } from '@/services/BibleService';
 
 interface MobileStrongsModalProps {
   strongsId: string | null;
@@ -27,7 +27,7 @@ export default function MobileStrongsModal({ strongsId, word, visible, onClose }
     if (!strongsId) return;
     setLoading(true);
     try {
-      const data = await MobileBibleAdapter.getStrongsDefinition(strongsId);
+      const data = await BibleService.getStrongsDefinition(strongsId);
       setDefinition(data);
     } catch (e) {
       console.error("Failed to load definition", e);

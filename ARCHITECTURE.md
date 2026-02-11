@@ -26,9 +26,14 @@ This document maps the current state of "The Way" monorepo. It identifies "Hotsp
 │   │   │   │   └── SocialPostCard.tsx
 │   │   │   ├── ComposePostModal.tsx
 │   │   │   └── MobileStrongsModal.tsx
+│   │   ├── repositories/
+│   │   │   └── BibleRepository.ts
+│   │   ├── services/
+│   │   │   ├── BibleService.ts
+│   │   │   ├── database/
+│   │   │   │   ├── updateChecker.ts 🚨 -> Extract SQL to repositories/MetadataRepository.ts
+│   │   │   │   └── updateApplier.ts 🚨 -> Extract SQL to repositories/MetadataRepository.ts
 │   │   └── utils/
-│   │       ├── bibleDb.ts 🚨 -> Move to apps/mobile/repositories/BibleRepository.ts (SQLite Layer)
-│   │       ├── mobileBibleAdapter.ts 🚨 -> Move to apps/mobile/repositories/BibleRepository.ts
 │   │       ├── mobileSocialAdapter.ts 🚨 -> Move to apps/mobile/repositories/SocialRepository.ts
 │   │       └── security.ts
 │   │
@@ -47,7 +52,11 @@ This document maps the current state of "The Way" monorepo. It identifies "Hotsp
 │       │   │   │   └── health/route.ts
 │       │   ├── lib/
 │       │   │   ├── adapters/
-│       │   │   │   └── webBibleAdapter.ts
+│       │   │   │   └── webBibleAdapter.ts 🚨 -> Move to repositories/BibleRepository.ts
+│       │   │   ├── db/
+│       │   │   │   └── repositories/
+│       │   │   │       └── auth.repository.ts
+│       │   │   ├── auth.ts (Uses AuthRepository ✅)
 │       │   │   ├── supabase.ts
 │       │   │   └── swagger.ts
 │       │   └── components/
@@ -57,6 +66,10 @@ This document maps the current state of "The Way" monorepo. It identifies "Hotsp
     ├── bible-engine/
     │   ├── src/
     │   │   ├── index.ts
+    │   │   ├── repositories/
+    │   │   │   └── IBibleRepository.ts
+    │   │   ├── services/
+    │   │   │   └── BibleService.ts
     │   │   └── types.ts
     │   └── package.json
     ├── social-engine/
@@ -72,10 +85,10 @@ This document maps the current state of "The Way" monorepo. It identifies "Hotsp
 
 ## 🚨 Hotspot Analysis
 
-### 1. Mobile Database Access (`apps/mobile/utils`)
-*   **Current:** Direct `expo-sqlite` calls in utility files.
-*   **Target:** `apps/mobile/repositories/*`
-*   **Why:** Decouples DB implementation from UI. Allows swapping SQLite for another engine if needed.
+### 1. Mobile Database Access (`apps/mobile/repositories`)
+*   **Status:** ✅ Refactored to Repository Pattern.
+*   **Location:** `apps/mobile/repositories/BibleRepository.ts`
+*   **Role:** Handles all direct SQLite interactions.
 
 ### 2. Web API Logic (`apps/web/src/app/api`)
 *   **Current:** Validation, Auth, and DB queries all inside `route.ts`.
@@ -85,7 +98,12 @@ This document maps the current state of "The Way" monorepo. It identifies "Hotsp
 ### 3. UI Component Logic (`apps/mobile/app`)
 *   **Current:** `useEffect` fetching data directly in screens.
 *   **Target:** Custom Hooks (`packages/social-engine/src/useFeed.ts` is a good start).
-*   **Why:** UI should be pure. State management should be separate.
+*   **Progress:** `read.tsx` now calls `BibleService` (✅), decoupling DB logic.
+
+### 4. Technical Debt Audit (Phase 9 Findings)
+*   **Web Auth**: `apps/web/src/lib/auth.ts` refactored to `AuthRepository` (✅).
+*   **Web Admin**: `seed-bible/route.ts` contains raw SQL. Target: `AdminService`.
+*   **Mobile Updates**: `updateChecker.ts` refactored to `MetadataRepository` (✅).
 
 ## 🗺️ Migration Path
 

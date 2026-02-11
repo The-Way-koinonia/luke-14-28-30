@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import { db } from './db';
+import { AuthRepository } from './db/repositories/auth.repository';
 
 declare module 'next-auth' {
   interface Session {
@@ -28,10 +29,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // TODO: Add password hashing with bcrypt
-        const user = await db.queryOne<any>(
-          'SELECT id, email, username, name, image FROM users WHERE email = $1',
-          [credentials.email]
-        );
+        const user = await AuthRepository.getUserByEmail(credentials.email);
 
         if (!user) {
           return null;

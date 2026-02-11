@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { MobileBibleAdapter } from '@/utils/mobileBibleAdapter';
+import { BibleService } from '@/services/BibleService';
 import { BibleBook, BibleVerse } from '@the-way/bible-engine';
 import MobileStrongsModal from '@/components/MobileStrongsModal';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,7 +42,7 @@ export default function MobileBibleReader() {
 
   const loadBooks = async () => {
     try {
-      const data = await MobileBibleAdapter.getBooks();
+      const data = await BibleService.getBooks();
       setBooks(data);
     } catch (e) {
       console.error("Failed to load books", e);
@@ -52,7 +52,7 @@ export default function MobileBibleReader() {
   const loadVerses = async () => {
     setLoading(true);
     try {
-      const data = await MobileBibleAdapter.getChapterVerses(selectedBook, selectedChapter);
+      const data = await BibleService.getChapter(selectedBook, selectedChapter);
       setVerses(data);
     } catch (e) {
       console.error("Failed to load verses", e);

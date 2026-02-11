@@ -24,3 +24,5 @@ export interface BibleEngine {
     search(params: BibleSearchParams): Promise<BibleVerse[]>;
 }
 export * from './types';
+export * from './repositories/IBibleRepository';
+export { BibleService as EngineBibleService } from './services/BibleService';
