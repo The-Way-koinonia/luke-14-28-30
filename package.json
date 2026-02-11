@@ -19,10 +19,14 @@
     "db:down": "cd database && docker compose down",
     "db:logs": "cd database && docker logs theway-postgres-1",
     "db:shell": "cd database && docker exec -it theway-postgres-1 psql -U the_way_user -d the_way",
-    "db:import": "ts-node database/scripts/import-bible-verses.ts"
+    "db:import": "ts-node database/scripts/import-bible-verses.ts",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@google/generative-ai": "^0.24.1",
     "better-sqlite3": "^12.5.0",
+    "dotenv": "^17.2.4",
+    "husky": "^9.1.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
