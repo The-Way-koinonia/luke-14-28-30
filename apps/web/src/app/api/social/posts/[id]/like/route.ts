@@ -10,6 +10,36 @@ type Props = {
   }>;
 };
 
+/**
+ * @swagger
+ * /api/social/posts/{id}/like:
+ *   post:
+ *     summary: Toggle like on a post
+ *     description: Likes or unlikes a post based on current state
+ *     tags:
+ *       - Social
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the post to like/unlike
+ *     responses:
+ *       200:
+ *         description: Like status toggled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 liked:
+ *                   type: boolean
+ *       401:
+ *         description: Unauthorized
+ */
 export async function POST(
   request: NextRequest,
   props: Props

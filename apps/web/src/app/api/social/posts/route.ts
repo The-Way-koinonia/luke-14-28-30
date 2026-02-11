@@ -2,6 +2,38 @@
 import { supabase } from '@/lib/supabase';
 import { NextRequest, NextResponse } from 'next/server';
 
+/**
+ * @swagger
+ * /api/social/posts:
+ *   post:
+ *     summary: Create a new post
+ *     description: Creates a new social post with optional media
+ *     tags:
+ *       - Social
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *               media_type:
+ *                 type: string
+ *                 enum: [text, image, video]
+ *     responses:
+ *       200:
+ *         description: Post created successfully
+ *       400:
+ *         description: Missing content
+ *       401:
+ *         description: Unauthorized
+ */
 export async function POST(request: NextRequest) {
   try {
     const { content, media_type } = await request.json();

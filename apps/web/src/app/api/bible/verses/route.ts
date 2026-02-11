@@ -1,6 +1,58 @@
 import { NextResponse } from 'next/server';
 import { WebBibleAdapter } from '@/lib/adapters/webBibleAdapter';
 
+/**
+ * @swagger
+ * /api/bible/verses:
+ *   get:
+ *     summary: Retrieve Bible verses
+ *     description: Returns verses for a specific chapter or single verse
+ *     tags:
+ *       - Bible
+ *     parameters:
+ *       - in: query
+ *         name: bookId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the Bible book (1-66)
+ *       - in: query
+ *         name: chapter
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Chapter number
+ *       - in: query
+ *         name: verse
+ *         schema:
+ *           type: integer
+ *         description: Optional verse number
+ *     responses:
+ *       200:
+ *         description: Verses retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 verses:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       text:
+ *                         type: string
+ *                       verse:
+ *                         type: integer
+ *       400:
+ *         description: Missing bookId or chapter
+ *       404:
+ *         description: No verses found
+ */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
