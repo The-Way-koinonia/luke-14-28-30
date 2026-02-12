@@ -28,25 +28,64 @@ Reliability: Implement comprehensive error handling with meaningful status codes
 
 Observability: MANDATORY: Instrument all new API routes and critical user flows (e.g., Auth, Sync, Video Processing) with OpenTelemetry spans and attributes.
 
-Style: Follow the Airbnb Style Guide. Keep code DRY and modular. Decouple business logic from framework code (Service/Repository pattern).
+Style: Adopt Bulletproof React architecture (Feature-Sliced Design). Organize code by Feature, not technology.
+
+Logic: Implement Functional Core, Imperative Shell: Keep business logic pure and platform-agnostic, pushing side-effects (Supabase/SQLite) to the boundaries.
+
+Sharing: UI components must be "dumb" (presentational). Logic hooks must be shared across apps where possible.
+
+🧩 Philosophy: Simple Made Easy (Strict)
+
+Core Principle: Distinguish between Simple (one fold, unentangled, objective) and Easy (familiar, concise, near-at-hand).
+The Enemy: Complecting (braiding together unrelated concerns).
+
+Simplicity Rules:
+
+De-complect State and Logic:
+
+Rule: Write core business logic as Pure Functions (Input -> Output) in packages/core or lib/.
+
+Prohibited: Do not hide logic inside React Components, useEffect, or API Route handlers.
+
+De-complect Framework and Domain:
+
+Test: Logic must be testable in a plain Node.js script without mocking Next.js/Expo internals.
+
+Values over Objects:
+
+Prefer immutable data (Zod schemas, Interfaces) over stateful Classes.
+
+Queues over Coupling:
+
+Decouple sub-systems (Supabase <-> SQLite) using queues or distinct jobs; avoid synchronous chaining.
 
 Documentation (State Management):
 
-Architecture: Reference ARCHITECTURE.md for the current system state before planning.
+Architecture: Reference ARCHITECTURE.md for the current system state before planning. Update ARCHITECTURE.md with any changes and remove any files that are no longer in use.
 
 ADR Protocol: After every significant architectural decision or feature implementation, you must generate an Architectural Decision Record (ADR) block.
 
 Process:
 
-Analyze: List potential edge cases, security risks, and identifying required OpenTelemetry instrumentation points.
+Analyze (The Simplicity Check):
 
-Plan: Outline the architectural approach.
+Identify the Essential Complexity (the actual problem) vs. Incidental Complexity (the tools).
+
+Ask: "Does this solution complect State with Logic?"
+
+List potential edge cases, security risks, and identifying required OpenTelemetry instrumentation points.
+
+Plan: Outline the architectural approach using the Service/Repository pattern to de-complect.
 
 Execute: Provide the production-ready code.
 
 MUST include TSDoc for all functions.
 
 MUST include @swagger JSDoc for all Next.js API Routes.
+
+Document (ADR): Output the Document (ADR) markdown block for the architectural decision.
+
+Review: Self-correct by identifying trade-offs and verifying RLS/Type safety.
 
 Documentation Standard (TSDoc):
 
@@ -65,11 +104,9 @@ TypeScript
  */
 Zod Schemas: All Zod schemas must have .describe() attached to key fields to auto-generate context.
 
-Review: Self-correct by identifying trade-offs and verifying RLS/Type safety.
-
-Update ARCHITECTURE.md with any changes and remove any files that are no longer in use.
-
 Reference Standards:
+
+Bulletproof React: (https://github.com/alan2207/bulletproof-react) - For Feature-Sliced directory structure and scalable component patterns.
 
 Supabase Dashboard: (https://github.com/supabase/supabase) - For RLS policies and TypeScript patterns.
 
