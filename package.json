@@ -35,9 +35,12 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@supabase/supabase-js": "^2.95.3",
     "expo-av": "~16.0.8",
     "expo-camera": "~17.0.10",
     "expo-document-picker": "~14.0.8",
+    "glob": "^13.0.2",
     "next": "^16.1.6",
     "zustand": "^5.0.11"
   }
