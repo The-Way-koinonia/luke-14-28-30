@@ -8,18 +8,19 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 // --- Configuration ---
 const CONFIG = {
   // 🧠 The Architect (Refactoring)
-  model_refactor: "claude-3-opus-20240229", // Use "claude-opus-4.6" if available in your beta access
+  // SPECIFIC REQUEST: Using the beta/enterprise ID you found.
+  // If this ID fails (404), revert to "claude-3-opus-20240229" or "claude-3-5-sonnet-20240620"
+  model_refactor: "claude-opus-4-6", 
   
   // 📘 The Professor (Documentation)
-  model_doc: "gemini-1.5-pro-latest", 
+  // Using Gemini 2.0 Flash for maximum context window and speed.
+  model_doc: "gemini-2.0-flash", 
   
   // 📚 The Librarian (Vectors)
-  model_embed: "embedding-001", 
+  model_embed: "text-embedding-004", 
   
   base_dir: process.cwd(),
   prompts_file: path.join(process.cwd(), 'PROMPTS.md'),
@@ -33,28 +34,47 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// --- 🕵️‍♀️ Phase 1: The "Claude" Refactor ---
+// --- 🛡️ Helper: Smart Retry Wrapper (Tier 1 Tuned) ---
+async function safeExecute<T>(
+  operation: () => Promise<T>, 
+  retries = 5, // Increased retries for Opus
+  delay = 10000 // Start with 10 seconds wait (Tier 1 safe)
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    // Check for Rate Limit (429) or Overloaded (529)
+    if ((error.status === 429 || error.status === 529) && retries > 0) {
+      console.warn(`   ⚠️ Rate Limit Hit (${error.status}). Cooling down for ${delay/1000}s...`);
+      await new Promise(r => setTimeout(r, delay));
+      // Exponential Backoff: 10s -> 20s -> 40s -> 80s
+      return safeExecute(operation, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
+// --- 🕵️‍♀️ Phase 1: Claude Refactor ---
 async function refactorWithClaude(filename: string, code: string, masterPrompt: string) {
   const msg = await anthropic.messages.create({
     model: CONFIG.model_refactor,
-    max_tokens: 4096,
+    max_tokens: 6000,
     system: `
-      You are a Senior Staff Software Engineer. 
-      Your only goal is to REFACTOR code based on the "Master Prompt" rules provided.
-      
-      RULES:
       ${masterPrompt}
+
+      ---
       
-      OUTPUT:
-      Return ONLY the refactored code. No conversational filler. 
-      If the code is already perfect, return the original code exactly.
+      IMMEDIATE TASK:
+      Refactor the code provided by the user below. 
+      Apply the "Simplicity" and "Security" standards defined above.
+      
+      OUTPUT FORMAT:
+      Return ONLY the refactored code. Do not include markdown blocks like \`\`\`typescript if not necessary, just the raw code is preferred, or standard markdown. 
+      NO conversational filler (e.g. "Here is the code").
     `,
-    messages: [
-      { role: "user", content: `Refactor this file: ${filename}\n\n${code}` }
-    ]
+    messages: [{ role: "user", content: `Refactor this file: ${filename}\n\n${code}` }]
   });
 
-  // Extract text safely from the content block
   const textBlock = msg.content.find(c => c.type === 'text');
   return textBlock?.text || code; 
 }
@@ -98,16 +118,14 @@ async function documentWithGemini(filename: string, code: string) {
 async function vectorizeAndSave(filePath: string, chapterContent: string) {
   const model = googleAI.getGenerativeModel({ model: CONFIG.model_embed });
   
-  // 1. Get Embedding
   const result = await model.embedContent(chapterContent);
   const embedding = result.embedding.values;
 
-  // 2. Save to Supabase (Overwrite old entry)
   await supabase.from('code_embeddings').delete().eq('file_path', filePath);
   
   const { error } = await supabase.from('code_embeddings').insert({
     file_path: filePath,
-    content: chapterContent, // Store the explanation
+    content: chapterContent,
     embedding: embedding
   });
 
@@ -124,28 +142,36 @@ async function main() {
     console.error("⚠️ PROMPTS.md not found. Using default constraints.");
   }
 
-  // 2. Scan Files
+  // 2. Scan Files (Future Proofing)
   let allFiles = await glob('packages/social-engine/src/*.ts', {
     ignore: ['**/node_modules/**', '**/dist/**', '**/*.d.ts', '**/*.test.ts', '**/ui/**'],
     cwd: CONFIG.base_dir,
   });
 
-  // 🛑 TEST MODE: Only take the first 3 files!
-  const files = allFiles.slice(0, 3); 
+  // 🛑 TEST MODE: Hardcoded Single File Probe
+  const files = ['apps/mobile/utils/bibleDb.ts'];
 
-  console.log(`🚀 TEST MODE: Processing ${files.length} files (out of ${allFiles.length} total)...`);
+  console.log(`🚀 TEST MODE: Processing ${files.length} file(s) with ${CONFIG.model_refactor}...`);
   const manualPath = path.join(CONFIG.base_dir, 'THE_WAY_MANUAL.md');
 
   for (const file of files) {
     console.log(`\n📂 Processing: ${file}`);
+    
+    // Check if file exists to prevent crash
+    if (!fs.existsSync(file)) {
+      console.error(`   ❌ File not found: ${file}`);
+      continue;
+    }
+
     const originalCode = fs.readFileSync(file, 'utf-8');
 
     try {
-      // Step A: Claude Refactor
+      // Step A: Claude Refactor (Protected)
       process.stdout.write("   🤖 Claude Refactoring...");
-      const refactoredCode = await refactorWithClaude(file, originalCode, masterPrompt);
+      const refactoredCode = await safeExecute(() => 
+        refactorWithClaude(file, originalCode, masterPrompt)
+      );
       
-      // Save Refactored Code to Disk (Overwrite)
       if (refactoredCode !== originalCode) {
         fs.writeFileSync(file, refactoredCode);
         process.stdout.write(" [Updated File] ✅\n");
@@ -153,23 +179,27 @@ async function main() {
         process.stdout.write(" [No Changes Needed] ✅\n");
       }
 
-      // Step B: Gemini Documentation
+      // Step B: Gemini Documentation (Protected)
       process.stdout.write("   📘 Gemini Documenting...");
-      const chapter = await documentWithGemini(file, refactoredCode);
+      const chapter = await safeExecute(() => 
+        documentWithGemini(file, refactoredCode)
+      );
       fs.appendFileSync(manualPath, chapter + '\n\n');
       process.stdout.write(" ✅\n");
 
-      // Step C: Gemini Vectorizing
+      // Step C: Gemini Vectorizing (Protected)
       process.stdout.write("   🧠 Gemini Vectorizing...");
-      await vectorizeAndSave(file, chapter);
+      await safeExecute(() => 
+        vectorizeAndSave(file, chapter)
+      );
       process.stdout.write(" ✅\n");
 
-    } catch (e) {
-      console.error(`\n   🔥 Failed on ${file}:`, e);
+    } catch (e: any) {
+      console.error(`\n   🔥 Failed on ${file}:`, e.message);
+      if (e.status === 404) {
+        console.error("      HINT: The Model ID 'claude-opus-4-6' might be invalid or not enabled for your key.");
+      }
     }
-
-    console.log("   💤 Cooling down for 5 seconds...");
-    await sleep(5000); // 5-second pause safeguards your Rate Limits
   }
 }
 
